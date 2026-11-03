@@ -1,0 +1,1513 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Traceur VTT Isère</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.L||document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>');</script>
+<style>
+:root{
+  --bg:#f4f2ec; --panel:#fbfaf6; --ink:#1d2421; --muted:#5f6a64; --line:#dcd8cc;
+  --accent:#2f6b4f; --accent-ink:#fff; --soft:#e8efe9;
+  --vert:#2e9e44; --bleu:#1f6fd1; --rouge:#d6352f; --noir:#1b1b1b; --route:#8a8f98;
+  --warn:#c4511f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{display:grid;grid-template-columns:370px 1fr;height:100vh}
+#panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:18px 18px 28px}
+h1{font-size:19px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:12.5px;margin:2px 0 14px}
+.block{border-top:1px solid var(--line);padding:14px 0 6px}
+.block h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+label.f{display:block;font-size:13px;margin:10px 0 4px;color:var(--ink)}
+select,input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;color:inherit}
+.row{display:flex;align-items:center;gap:10px}
+.row input[type=range]{flex:1;accent-color:var(--accent)}
+.val{min-width:70px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+#searchres{list-style:none;margin:4px 0 0;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;display:none;max-height:180px;overflow:auto}
+#searchres li{padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0eee8}
+#searchres li:hover{background:var(--soft)}
+#startinfo{font-size:12.5px;color:var(--muted);margin-top:8px}
+#startinfo b{color:var(--ink)}
+.levels{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px}
+.levels button{border:2px solid transparent;border-radius:8px;padding:8px 0 6px;background:#fff;cursor:pointer;font:inherit;font-weight:600;color:#fff}
+.levels button[data-l=vert]{background:var(--vert)} .levels button[data-l=bleu]{background:var(--bleu)}
+.levels button[data-l=rouge]{background:var(--rouge)} .levels button[data-l=noir]{background:var(--noir)}
+.levels button{opacity:.45} .levels button.on{opacity:1;box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+#leveldesc{font-size:12px;color:var(--muted);margin-top:6px;min-height:34px}
+.opts label{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:7px 0;cursor:pointer}
+.opts input{margin-top:3px;accent-color:var(--accent)}
+.btn{width:100%;padding:11px;border-radius:9px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:650;cursor:pointer;margin-top:12px}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent);margin-top:8px;display:none}
+.card{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin:10px 0;background:#fff;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:#b9b4a6}
+.card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card .t{display:flex;justify-content:space-between;align-items:baseline;font-weight:650}
+.card .t span{font-weight:500;color:var(--muted);font-size:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin:8px 0 6px}
+.stats div{font-size:11.5px;color:var(--muted)}
+.stats b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{display:flex;height:7px;border-radius:4px;overflow:hidden;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:5px;font-size:12px}
+.chip{background:var(--soft);border-radius:20px;padding:2px 8px}
+.chip.w{background:#fbe6dc;color:#8a3510}
+.foot{font-size:11.5px;color:var(--muted);margin-top:18px;line-height:1.5}
+.foot a{color:var(--accent)}
+
+#main{display:grid;grid-template-rows:1fr 300px;min-width:0;height:100vh}
+#map{min-height:0}
+#bottom{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);border-top:1px solid var(--line);background:var(--panel);min-height:0}
+#pwrap{position:relative;padding:10px 12px 8px;min-width:0;border-right:1px solid var(--line)}
+#profile{width:100%;height:100%;display:block}
+#phover{position:absolute;top:10px;right:14px;font-size:12px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;padding:3px 8px;pointer-events:none;display:none;font-variant-numeric:tabular-nums}
+#details{display:flex;flex-direction:column;min-height:0}
+#tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#tabs button{border:0;background:none;padding:7px 10px;font:inherit;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+#tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+#tabbody{overflow-y:auto;padding:8px 12px 14px;font-size:13px}
+.empty{color:var(--muted);padding:30px 10px;text-align:center}
+.item{padding:8px 4px;border-bottom:1px solid #eeebe3;cursor:pointer}
+.item:hover{background:var(--soft)}
+.item .h{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.item .h span{font-weight:500;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.item .d{color:var(--muted);font-size:12.5px;margin-top:2px}
+.stars{color:#c98a0b;letter-spacing:1px}
+.note{font-size:12px;color:var(--muted);background:#f1efe7;border-radius:8px;padding:8px 10px;margin:6px 0 10px}
+
+.legend{background:rgba(251,250,246,.95);padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;min-width:170px}
+.legend select{padding:4px 6px;font-size:12px;margin-bottom:6px}
+.legend .li{display:flex;align-items:center;gap:7px;margin:3px 0}
+.legend i{display:inline-block;width:22px;height:5px;border-radius:3px}
+.legend i.dash{background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 8px)!important}
+.poi-ic{font-size:17px;line-height:1;text-shadow:0 0 3px #fff,0 0 3px #fff}
+.start-ic{background:var(--accent);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+
+#busy{position:fixed;inset:0;background:rgba(244,242,236,.72);display:none;align-items:center;justify-content:center;z-index:2000}
+#busy .box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px;width:340px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+#busy .msg{font-weight:600;margin-bottom:10px}
+#busy .pb{height:6px;background:#eee;border-radius:3px;overflow:hidden}
+#busy .pb div{height:100%;width:0;background:var(--accent);transition:width .2s}
+#busy .sm{font-size:12px;color:var(--muted);margin-top:8px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a2f2c;color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;display:none;z-index:2100;max-width:90vw}
+
+@media (max-width:900px){
+  #app{grid-template-columns:1fr;height:auto}
+  #panel{border-right:0;border-bottom:1px solid var(--line)}
+  #main{height:auto;grid-template-rows:60vh auto}
+  #bottom{grid-template-columns:1fr}
+  #pwrap{height:220px;border-right:0;border-bottom:1px solid var(--line)}
+  #tabbody{max-height:360px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>Traceur VTT</h1>
+    <div class="sub">Grenoble · Chartreuse · Vercors · Taillefer · Oisans · Matheysine · Trièves · Dévoluy</div>
+
+    <div class="block">
+      <h2>Départ</h2>
+      <select id="preset"><option value="">Choisir un départ par secteur…</option></select>
+      <label class="f" for="search">Ou chercher un lieu</label>
+      <input id="search" type="text" placeholder="Commune, col, parking…" autocomplete="off">
+      <ul id="searchres"></ul>
+      <div id="startinfo">Ou clique directement sur la carte.</div>
+    </div>
+
+    <div class="block">
+      <h2>Sortie</h2>
+      <label class="f">Distance</label>
+      <div class="row"><input id="dist" type="range" min="8" max="90" step="1" value="30"><span class="val" id="distv">30 km</span></div>
+      <label class="f">Dénivelé positif</label>
+      <div class="row"><input id="dplus" type="range" min="150" max="3000" step="50" value="900"><span class="val" id="dplusv">900 m</span></div>
+      <label class="f">Niveau</label>
+      <div class="levels" id="levels">
+        <button data-l="vert">Vert</button><button data-l="bleu" class="on">Bleu</button><button data-l="rouge">Rouge</button><button data-l="noir">Noir</button>
+      </div>
+      <div id="leveldesc"></div>
+    </div>
+
+    <details class="block opts">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600">Options</summary>
+      <label><input type="checkbox" id="optMarked" checked> Privilégier les parcours VTT balisés (sites FFC, etc.)</label>
+      <label><input type="checkbox" id="optPaved" checked> Limiter le bitume</label>
+      <label><input type="checkbox" id="optPush"> Portage accepté (montées non roulables moins pénalisées)</label>
+      <label><input type="checkbox" id="optNP" checked> Exclure le cœur des parcs nationaux (VTT interdit)</label>
+      <label><input type="checkbox" id="optIGN" checked> Analyse fine du relief avec l'IGN (RGE ALTI, plus lent)</label>
+    </details>
+
+    <button class="btn" id="go">Tracer des boucles</button>
+    <button class="btn ghost" id="more">Autres propositions</button>
+
+    <div id="results"></div>
+
+    <div class="foot">
+      Données : © contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> (chemins, niveaux VTT, parcours balisés, points d'eau, points de vue) ·
+      Relief et fonds : © <a href="https://geoservices.ign.fr" target="_blank">IGN Géoplateforme</a>, Mapzen Terrarium ·
+      Parcours balisés : <a href="https://mtb.waymarkedtrails.org" target="_blank">Waymarked Trails</a>, <a href="https://sitesvtt.ffc.fr" target="_blank">Sites VTT-FFC</a>.<br>
+      Les niveaux de difficulté, la roulabilité et l'exposition sont <b>estimés</b> à partir des données disponibles : vérifie toujours sur le terrain, et respecte la réglementation locale.
+    </div>
+  </aside>
+
+  <div id="main">
+    <div id="map"></div>
+    <section id="bottom">
+      <div id="pwrap"><canvas id="profile"></canvas><div id="phover"></div></div>
+      <div id="details">
+        <div id="tabs">
+          <button data-t="resume" class="on">Résumé</button>
+          <button data-t="montees">Montées</button>
+          <button data-t="descentes">Descentes</button>
+          <button data-t="vigilance">Vigilance</button>
+          <button data-t="poi">Eau &amp; points de vue</button>
+        </div>
+        <div id="tabbody"><div class="empty">Choisis un départ, règle la sortie, puis lance le calcul.</div></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="busy"><div class="box"><div class="msg" id="busymsg">…</div><div class="pb"><div id="busybar"></div></div><div class="sm" id="busysm"></div></div></div>
+<div id="toast"></div>
+
+<!-- ============================ CŒUR DE CALCUL (sans DOM) ============================ -->
+<script id="core">
+"use strict";
+const NIVEAUX = {
+  vert: {label:"Vert", max:1,   hard:2,   v:12, vc:400, climbBonus:-0.02,
+         desc:"Chemins larges et singles faciles (S0–S1). Montées régulières, peu de technique."},
+  bleu: {label:"Bleu", max:2,   hard:3,   v:14, vc:500, climbBonus:0,
+         desc:"Singles avec racines et pierres (jusqu'à S2). Quelques passages raides."},
+  rouge:{label:"Rouge",max:3,   hard:4,   v:15, vc:600, climbBonus:0.02,
+         desc:"Singles techniques (jusqu'à S3) : marches, épingles, pierriers. Bon niveau requis."},
+  noir: {label:"Noir", max:4.3, hard:6,   v:16, vc:700, climbBonus:0.035,
+         desc:"Engagé (S4 et plus) : très technique, exposé, portage fréquent."}
+};
+const RE = 6371008.8, D2R = Math.PI/180;
+function hav(la1,lo1,la2,lo2){const dLa=(la2-la1)*D2R,dLo=(lo2-lo1)*D2R;const a=Math.sin(dLa/2)**2+Math.cos(la1*D2R)*Math.cos(la2*D2R)*Math.sin(dLo/2)**2;return 2*RE*Math.asin(Math.min(1,Math.sqrt(a)));}
+function offsetLL(lat,lon,brg,dist){const b=brg*D2R;return [lat+dist*Math.cos(b)/110540, lon+dist*Math.sin(b)/(111320*Math.cos(lat*D2R))];}
+function bearing(la1,lo1,la2,lo2){return Math.atan2((lo2-lo1)*Math.cos((la1+la2)/2*D2R),la2-la1)/D2R;}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function rng(seed){let s=(seed>>>0)||123456789;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return (s%1000003)/1000003;};}
+
+/* ---------- Classification des voies OSM ---------- */
+function parseScale(v){if(v==null)return null;const m=String(v).trim().match(/^(\d)([+-]?)/);if(!m)return null;let x=+m[1];if(m[2]==='+')x+=0.3;if(m[2]==='-')x-=0.3;return x;}
+const SAC={hiking:1,mountain_hiking:2,demanding_mountain_hiking:3.5,alpine_hiking:4.5,demanding_alpine_hiking:5.5,difficult_alpine_hiking:6};
+const SMOOTH={excellent:0,good:0,intermediate:0,bad:0.5,very_bad:1,horrible:2,very_horrible:3,impassable:6};
+const PAVED_RE=/^(asphalt|paved|concrete|concrete:plates|concrete:lanes|paving_stones|sett|chipseal|metal)$/;
+function classifyWay(t){
+  const hw=t.highway; let cls;
+  if(hw==='path'||hw==='bridleway'||hw==='footway') cls='single';
+  else if(hw==='track') cls='track';
+  else if(hw==='cycleway') cls='cycleway';
+  else if(hw==='tertiary'||hw==='secondary') cls='road_big';
+  else cls='road';
+  const s=(t.surface||'').split(';')[0];
+  const pavedSurf=PAVED_RE.test(s), unpavedSurf=!!s&&!pavedSurf;
+  let paved;
+  if(cls==='road'||cls==='road_big'||cls==='cycleway') paved=!unpavedSurf;
+  else if(cls==='track') paved=pavedSurf||t.tracktype==='grade1';
+  else paved=pavedSurf;
+  if(cls==='single'&&paved) cls='footpaved';
+  if(cls==='road'&&!paved) cls='track';
+  let tech=null, src='';
+  const mtb=parseScale(t['mtb:scale']);
+  if(mtb!=null){tech=mtb;src='mtb';}
+  else if(cls==='single'&&SAC[t.sac_scale]!=null){tech=SAC[t.sac_scale];src='rando';}
+  else{
+    if(cls==='single'){tech=1.5;src='inconnu';if(/^(bad|horrible|no)$/.test(t.trail_visibility||''))tech+=1;}
+    else if(cls==='track'){const g={grade1:0,grade2:0,grade3:0.5,grade4:1,grade5:1.5}[t.tracktype];tech=g!=null?g:0.5;src='type';}
+    else {tech=0;src='type';}
+    const sm=SMOOTH[t.smoothness]; if(sm!=null){tech=Math.max(tech,sm); if(src==='inconnu')src='etat';}
+  }
+  const uphill=parseScale(t['mtb:scale:uphill']);
+  const oneway=(t.oneway==='yes'||t.oneway==='1')&&t['oneway:bicycle']!=='no'&&cls!=='single';
+  const onewayRev=t.oneway==='-1'&&cls!=='single';
+  const sac=SAC[t.sac_scale];
+  return {cls,paved,tech,src,uphill,oneway,onewayRev,name:t.name||t.ref||'',hw,mtb:null,np:false,res:false,sac:sac!=null?sac:null,hazard:t.hazard||null};
+}
+function mkPoi(t,lat,lon){
+  let type=null;
+  if(t.amenity==='drinking_water'||(t.drinking_water==='yes'&&t.amenity!=='fountain')) type='eau';
+  else if(t.amenity==='fountain'&&t.drinking_water!=='no') type=t.drinking_water==='yes'?'eau':'fontaine';
+  else if(t.natural==='spring') type='source';
+  else if(t.tourism==='viewpoint') type='vue';
+  else if(t.natural==='peak') type='sommet';
+  else if(t.mountain_pass==='yes'||t.natural==='saddle') type='col';
+  else if(t.tourism==='alpine_hut'||t.tourism==='wilderness_hut') type='refuge';
+  else if(t.amenity==='shelter') type='abri';
+  if(!type) return null;
+  return {type,lat,lon,name:t.name||'',ele:parseFloat(t.ele)||null};
+}
+const POI_INFO={
+  eau:{ic:'💧',lab:"Point d'eau potable",d:150},
+  fontaine:{ic:'⛲',lab:"Fontaine (potabilité non indiquée)",d:150},
+  source:{ic:'🌊',lab:"Source (débit non garanti)",d:150},
+  vue:{ic:'👁️',lab:"Point de vue",d:250},
+  sommet:{ic:'⛰️',lab:"Sommet",d:300},
+  col:{ic:'🏔️',lab:"Col",d:200},
+  refuge:{ic:'🛖',lab:"Refuge / cabane",d:250},
+  abri:{ic:'🏠',lab:"Abri",d:150}
+};
+
+/* ---------- Construction du graphe ---------- */
+function buildGraph(json){
+  const els=json.elements||[];
+  const id2i=new Map(), LA=[], LO=[];
+  const wayEls=[], pois=[], cliffs=[], np=new Set(), res=new Set(), rels=[], posts=[];
+  for(const el of els){
+    if(el.type==='node'){
+      if(el.tags&&Object.keys(el.tags).length){const p=mkPoi(el.tags,el.lat,el.lon);if(p)pois.push(p);
+        if(el.tags.information==='guidepost'&&(el.tags.name||el.tags.ref))posts.push({lat:el.lat,lon:el.lon,name:el.tags.name||el.tags.ref,ele:parseFloat(el.tags.ele)||null});}
+      if(!id2i.has(el.id)){id2i.set(el.id,LA.length);LA.push(el.lat);LO.push(el.lon);}
+    }else if(el.type==='way'){
+      if(el.geometry){if(el.tags&&/^(cliff|arete)$/.test(el.tags.natural))cliffs.push(el.geometry.map(g=>[g.lat,g.lon]));}
+      else if(el.center){const p=mkPoi(el.tags||{},el.center.lat,el.center.lon);if(p)pois.push(p);}
+      else if(el.nodes&&el.tags&&el.tags.highway) wayEls.push(el);
+    }else if(el.type==='relation'){if(el.tags&&el.tags.route==='mtb')rels.push(el);}
+    else if(el.type==='npway') np.add(+el.id);
+    else if(el.type==='resway') res.add(+el.id);
+  }
+  // dédoublonnage des POI
+  const P=[];
+  for(const p of pois){if(!P.some(q=>q.type===p.type&&hav(q.lat,q.lon,p.lat,p.lon)<60))P.push(p);}
+  const wayMtb=new Map();
+  for(const r of rels){const nm=r.tags.name||r.tags.ref||'Parcours VTT balisé';
+    for(const m of (r.members||[])) if(m.type==='way'){if(!wayMtb.has(m.ref))wayMtb.set(m.ref,[]);const a=wayMtb.get(m.ref);if(!a.includes(nm))a.push(nm);}}
+  const W=wayEls.map(el=>{const w=classifyWay(el.tags);w.id=el.id;w.mtb=wayMtb.get(el.id)||null;w.np=np.has(el.id);w.res=res.has(el.id);return w;});
+  const cnt=new Map();
+  for(const el of wayEls){const ns=el.nodes;for(let k=0;k<ns.length;k++){const id=ns[k];cnt.set(id,(cnt.get(id)||0)+((k===0||k===ns.length-1)?2:1));}}
+  const segWay=[],segNodes=[],segLen=[],segSub=[];
+  const pushSeg=(wi,cur)=>{if(cur.length<2)return;const sub=new Float32Array(cur.length-1);let L=0;
+    for(let k=0;k<cur.length-1;k++){const d=hav(LA[cur[k]],LO[cur[k]],LA[cur[k+1]],LO[cur[k+1]]);sub[k]=d;L+=d;}
+    if(L<0.5)return;segWay.push(wi);segNodes.push(Int32Array.from(cur));segLen.push(L);segSub.push(sub);};
+  wayEls.forEach((el,wi)=>{const ns=el.nodes;let cur=[];
+    for(let k=0;k<ns.length;k++){const i=id2i.get(ns[k]);
+      if(i==null){pushSeg(wi,cur);cur=[];continue;}
+      cur.push(i);
+      if(cur.length>1&&(cnt.get(ns[k])>=2||k===ns.length-1)){pushSeg(wi,cur);cur=[i];}
+    }
+    pushSeg(wi,cur);
+  });
+  const n=LA.length, m=segWay.length;
+  const segA=new Int32Array(m),segB=new Int32Array(m);
+  const deg=new Int32Array(n+1);
+  for(let s=0;s<m;s++){const ns=segNodes[s];segA[s]=ns[0];segB[s]=ns[ns.length-1];deg[segA[s]]++;deg[segB[s]]++;}
+  const as=new Int32Array(n+1);for(let i=0;i<n;i++)as[i+1]=as[i]+deg[i];
+  const fill=as.slice(0,n);const aTo=new Int32Array(2*m),aSeg=new Int32Array(2*m),aDir=new Int8Array(2*m);
+  for(let s=0;s<m;s++){let k=fill[segA[s]]++;aTo[k]=segB[s];aSeg[k]=s;aDir[k]=1;k=fill[segB[s]]++;aTo[k]=segA[s];aSeg[k]=s;aDir[k]=-1;}
+  const lat=Float64Array.from(LA),lon=Float64Array.from(LO);
+  let lat0=0,lon0=0;for(let i=0;i<n;i++){lat0+=lat[i];lon0+=lon[i];}lat0/=Math.max(n,1);lon0/=Math.max(n,1);
+  const kx=111320*Math.cos(lat0*D2R),ky=110540;
+  const x=new Float64Array(n),y=new Float64Array(n);for(let i=0;i<n;i++){x[i]=(lon[i]-lon0)*kx;y[i]=(lat[i]-lat0)*ky;}
+  return {n,m,lat,lon,x,y,lat0,lon0,kx,ky,ele:new Float32Array(n).fill(NaN),
+    segWay:Int32Array.from(segWay),segNodes,segLen:Float64Array.from(segLen),segSub,segA,segB,
+    as,aTo,aSeg,aDir,ways:W,pois:P,cliffs,deg,posts};
+}
+function toXY(G,lat,lon){return [(lon-G.lon0)*G.kx,(lat-G.lat0)*G.ky];}
+
+/* ---------- Coûts directionnels ---------- */
+function climbLimit(w,L){
+  let lim;
+  if(w.uphill!=null) lim = w.uphill<=L.max-0.5?0.20:(w.uphill<=L.max?0.14:0.06);
+  else if(w.paved) lim=0.17;
+  else if(w.cls==='track'||w.cls==='cycleway'||w.cls==='road') lim=w.tech<=0.5?0.15:0.12;
+  else lim = w.tech<=1?0.13:(w.tech<=2?0.10:(w.tech<=3?0.07:0.04));
+  return lim+L.climbBonus;
+}
+function edgeFactor(w,g,S){
+  const L=S.L;
+  if(w.np&&S.avoidNP) return Infinity;
+  if(w.tech>L.hard) return Infinity;
+  let f;
+  switch(w.cls){
+    case 'single': f=1.0;break;
+    case 'track': f=1.08;break;
+    case 'cycleway': f=w.paved?1.35:1.08;break;
+    case 'footpaved': f=1.8;break;
+    case 'road': f=w.paved?(S.avoidPaved?2.0:1.45):1.1;break;
+    default: f=S.avoidPaved?3.2:2.2;
+  }
+  if(w.mtb&&S.preferMarked) f*=0.8;
+  if(w.tech>L.max) f*=1+2.5*(w.tech-L.max);
+  if(w.cls==='single'&&w.src==='inconnu') f*=(L.max<=1?1.4:1.1);
+  if(g>0.005){
+    const lim=climbLimit(w,L);
+    if(g>lim+0.04) f*=S.allowPush?2.5:7;
+    else if(g>lim) f*=1.7;
+    f*=1+4*g;
+  }else if(g<-0.03){
+    if(w.cls==='single'&&w.tech<=L.max+0.01) f*=0.72;
+    else if(w.cls==='track') f*=0.95;
+    if(w.paved) f*=1.1;
+  }
+  return f;
+}
+function computeCosts(G,S){
+  const m=G.m,cF=new Float64Array(m),cB=new Float64Array(m);let hmin=Infinity;
+  for(let s=0;s<m;s++){
+    const w=G.ways[G.segWay[s]],ns=G.segNodes[s],sub=G.segSub[s];let f=0,b=0;
+    for(let k=0;k<sub.length;k++){const L=sub[k];let g=0;
+      if(L>=0.5){const dz=G.ele[ns[k+1]]-G.ele[ns[k]];if(dz===dz)g=clamp(dz/L,-0.6,0.6);}
+      f+=L*edgeFactor(w,g,S);b+=L*edgeFactor(w,-g,S);}
+    if(w.oneway)b=Infinity;if(w.onewayRev)f=Infinity;
+    cF[s]=f;cB[s]=b;const len=G.segLen[s];
+    if(f<Infinity)hmin=Math.min(hmin,f/len);if(b<Infinity)hmin=Math.min(hmin,b/len);
+  }
+  return {cF,cB,hmin:Math.max(0.3,isFinite(hmin)?hmin:0.5)};
+}
+
+/* ---------- A* ---------- */
+class Heap{constructor(){this.k=[];this.v=[];}
+  get size(){return this.k.length;}
+  push(v,k){const K=this.k,V=this.v;let i=K.length;K.push(k);V.push(v);
+    while(i>0){const p=(i-1)>>1;if(K[p]<=k)break;K[i]=K[p];V[i]=V[p];i=p;}K[i]=k;V[i]=v;}
+  pop(){const K=this.k,V=this.v,top=V[0],lk=K.pop(),lv=V.pop();const n=K.length;
+    if(n){let i=0;for(;;){let l=2*i+1;if(l>=n)break;const r=l+1;if(r<n&&K[r]<K[l])l=r;if(K[l]>=lk)break;K[i]=K[l];V[i]=V[l];i=l;}K[i]=lk;V[i]=lv;}
+    return top;}}
+function astar(G,src,dst,C,used,pen){
+  const n=G.n;
+  if(!G._d){G._d=new Float64Array(n);G._ps=new Int32Array(n);G._pd=new Int8Array(n);G._cl=new Uint8Array(n);}
+  const d=G._d,ps=G._ps,pd=G._pd,cl=G._cl;d.fill(Infinity);cl.fill(0);
+  const hx=G.x[dst],hy=G.y[dst],hm=C.hmin*0.98,X=G.x,Y=G.y;
+  const heap=new Heap();d[src]=0;heap.push(src,0);
+  const {as,aTo,aSeg,aDir}=G,cF=C.cF,cB=C.cB;
+  while(heap.size){const v=heap.pop();if(cl[v])continue;cl[v]=1;if(v===dst)break;
+    const dv=d[v];
+    for(let k=as[v];k<as[v+1];k++){const to=aTo[k];if(cl[to])continue;const s=aSeg[k];
+      let c=aDir[k]>0?cF[s]:cB[s];if(c===Infinity)continue;if(used&&used[s])c*=pen*used[s];
+      const nd=dv+c;if(nd<d[to]){d[to]=nd;ps[to]=s;pd[to]=aDir[k];heap.push(to,nd+Math.hypot(X[to]-hx,Y[to]-hy)*hm);}}}
+  if(d[dst]===Infinity)return null;
+  const path=[];let v=dst,guard=0;
+  while(v!==src&&guard++<1e6){const s=ps[v],dir=pd[v];path.push({s,dir});v=dir>0?G.segA[s]:G.segB[s];}
+  path.reverse();return {path,cost:d[dst]};
+}
+
+/* ---------- Accessibilité, grille spatiale ---------- */
+function component(G,C,src){
+  const seen=new Uint8Array(G.n),st=[src];seen[src]=1;
+  while(st.length){const v=st.pop();for(let k=G.as[v];k<G.as[v+1];k++){const s=G.aSeg[k];
+    if(C.cF[s]===Infinity&&C.cB[s]===Infinity)continue;const to=G.aTo[k];if(!seen[to]){seen[to]=1;st.push(to);}}}
+  return seen;
+}
+function buildGrid(G,C,cell){
+  const grid=new Map();
+  for(let v=0;v<G.n;v++){if(G.as[v+1]===G.as[v])continue;let ok=false;
+    for(let k=G.as[v];k<G.as[v+1];k++){const s=G.aSeg[k];if((G.aDir[k]>0?C.cF[s]:C.cB[s])<Infinity){ok=true;break;}}
+    if(!ok)continue;const key=Math.floor(G.x[v]/cell)+','+Math.floor(G.y[v]/cell);
+    if(!grid.has(key))grid.set(key,[]);grid.get(key).push(v);}
+  grid.cell=cell;return grid;
+}
+function near(G,grid,x,y,r){
+  const c=grid.cell,out=[];const x0=Math.floor((x-r)/c),x1=Math.floor((x+r)/c),y0=Math.floor((y-r)/c),y1=Math.floor((y+r)/c);
+  for(let i=x0;i<=x1;i++)for(let j=y0;j<=y1;j++){const a=grid.get(i+','+j);if(!a)continue;
+    for(const v of a){const d=Math.hypot(G.x[v]-x,G.y[v]-y);if(d<=r)out.push([v,d]);}}
+  return out;
+}
+function nearestVertex(G,grid,lat,lon,mask){
+  const [x,y]=toXY(G,lat,lon);
+  for(const r of [250,700,1500,3000]){let best=null;
+    for(const [v,d] of near(G,grid,x,y,r)){if(mask&&!mask[v])continue;if(!best||d<best[1])best=[v,d];}
+    if(best)return best[0];}
+  return -1;
+}
+function compSize(comp){let c=0;for(let i=0;i<comp.length;i++)c+=comp[i];return c;}
+
+/* ---------- Génération de boucles ---------- */
+function pickWaypoint(ctx,lat,lon,rs,tgt){
+  const {G,grid,comp,rand}=ctx;const [x,y]=toXY(G,lat,lon);
+  for(const r of [rs,rs*2,rs*3.5]){
+    let best=null,bs=Infinity;
+    for(const [v,d] of near(G,grid,x,y,r)){if(!comp[v]||v===ctx.startV)continue;const e=G.ele[v];
+      const sc=(e===e?Math.abs(e-tgt)/120:1)+d/r*0.6+rand()*0.4;if(sc<bs){bs=sc;best=v;}}
+    if(best!=null)return best;}
+  return -1;
+}
+function cleanPath(path){
+  const st=[];for(const p of path){const t=st[st.length-1];if(t&&t.s===p.s&&t.dir===-p.dir)st.pop();else st.push(p);}return st;
+}
+function makeLoop(ctx,p){
+  const {G,C,S,startV}=ctx;
+  const sLa=G.lat[startV],sLo=G.lon[startV],sE=G.ele[startV];
+  const H=S.dplus*0.75*(p.hScale||1);
+  let defs;
+  if(p.nwp===3) defs=[[p.bearing-p.alpha,p.r*0.8,0.5],[p.bearing,p.r*1.05,1],[p.bearing+p.alpha,p.r*0.8,0.5]];
+  else defs=[[p.bearing-p.alpha,p.r,p.highFirst?1:0.55],[p.bearing+p.alpha,p.r,p.highFirst?0.55:1]];
+  const wps=[];
+  for(const [b,r,h] of defs){const [la,lo]=offsetLL(sLa,sLo,b,r);const v=pickWaypoint(ctx,la,lo,Math.max(400,r*0.35),sE+H*h);if(v<0)return null;wps.push(v);}
+  const seq=[startV,...wps,startV];const used=new Uint8Array(G.m);let path=[];
+  for(let i=0;i<seq.length-1;i++){if(seq[i]===seq[i+1])continue;
+    const r=astar(G,seq[i],seq[i+1],C,used,4);if(!r)return null;
+    for(const q of r.path){used[q.s]=Math.min(used[q.s]+1,3);path.push(q);}}
+  path=cleanPath(path);
+  if(!path.length)return null;
+  return {path,params:p};
+}
+function pathNodes(G,path){
+  const out=[];
+  for(const {s,dir} of path){const ns=G.segNodes[s];
+    if(dir>0){for(let k=out.length?1:0;k<ns.length;k++)out.push([ns[k],s]);}
+    else{for(let k=ns.length-1-(out.length?1:0);k>=0;k--)out.push([ns[k],s]);}}
+  return out;
+}
+function quickEval(G,route,S){
+  const L=S.L;let len=0,paved=0,over=0,push=0,fun=0,unknown=0,reuse=0,single=0,mtb=0;
+  const cnt=new Map();for(const {s} of route.path)cnt.set(s,(cnt.get(s)||0)+1);
+  for(const [s,c] of cnt)if(c>1)reuse+=G.segLen[s]*(c-1);
+  let dplus=0,ref=NaN;
+  for(const {s,dir} of route.path){const w=G.ways[G.segWay[s]],ns=G.segNodes[s],sub=G.segSub[s];
+    for(let k0=0;k0<sub.length;k0++){const k=dir>0?k0:sub.length-1-k0;const a=dir>0?ns[k]:ns[k+1],b=dir>0?ns[k+1]:ns[k];
+      const Ls=sub[k];len+=Ls;const za=G.ele[a],zb=G.ele[b];const g=Ls>0.5&&za===za&&zb===zb?(zb-za)/Ls:0;
+      if(zb===zb){if(ref!==ref)ref=zb;else if(zb-ref>4){dplus+=zb-ref;ref=zb;}else if(ref-zb>4)ref=zb;}
+      if(w.paved)paved+=Ls;if(w.tech>L.max)over+=Ls;if(w.cls==='single'){single+=Ls;if(w.src==='inconnu')unknown+=Ls;}
+      if(w.mtb)mtb+=Ls;
+      if(g>climbLimit(w,L)+0.04)push+=Ls;
+      if(g<-0.05&&w.cls==='single'&&w.tech<=L.max)fun+=Ls;}}
+  const D=S.distKm*1000;
+  const score=2.2*Math.abs(len-D)/D+1.3*Math.abs(dplus-S.dplus)/Math.max(S.dplus,150)
+    +1.5*over/len+1.2*push/len+0.8*reuse/len+(S.avoidPaved?0.9:0.4)*paved/len-0.5*fun/len+0.3*unknown/len-(S.preferMarked?0.2*mtb/len:0);
+  return {len,dplus,paved,over,push,fun,unknown,reuse,single,mtb,score};
+}
+function segSet(route){const m=new Map();for(const {s} of route.path)m.set(s,1);return m;}
+function overlap(G,a,b){let inter=0,tot=0;const sa=segSet(a),sb=segSet(b);
+  for(const s of sa.keys()){tot+=G.segLen[s];if(sb.has(s))inter+=G.segLen[s];}
+  for(const s of sb.keys())if(!sa.has(s))tot+=G.segLen[s];return tot?inter/tot:0;}
+
+async function generateLoops(G,startLL,S,seed,onProg,tick){
+  const C=computeCosts(G,S);
+  const grid=buildGrid(G,C,400);
+  const startV=nearestVertex(G,grid,startLL[0],startLL[1]);
+  if(startV<0)throw new Error("Aucun chemin praticable trouvé près du point de départ.");
+  const comp=component(G,C,startV);
+  if(compSize(comp)<50)throw new Error("Le point de départ est isolé du réseau de chemins : déplace-le un peu.");
+  const rand=rng(seed);
+  const ctx={G,C,S,grid,comp,rand,startV};
+  const D=S.distKm*1000;
+  const rBase=D/(1.4*(2+2*Math.sin(45*D2R)));
+  const N=14,total=N+6;let done=0;const cands=[];
+  for(let i=0;i<N;i++){
+    const nwp=i%3===2?3:2;
+    const p={bearing:i*360/N+(rand()-0.5)*20,nwp,alpha:nwp===2?35+rand()*25:50+rand()*20,
+      r:rBase*(nwp===3?0.95:1)*(0.85+rand()*0.3),highFirst:rand()<0.5,hScale:1};
+    const r=makeLoop(ctx,p);if(r){r.m=quickEval(G,r,S);cands.push(r);}
+    onProg(++done/total);await tick();
+  }
+  if(!cands.length)throw new Error("Impossible de construire une boucle avec ces critères. Essaie un autre départ ou un niveau plus élevé.");
+  cands.sort((a,b)=>a.m.score-b.m.score);
+  for(const c of cands.slice(0,6)){
+    const p={...c.params,r:c.params.r*clamp(D/c.m.len,0.6,1.7),
+      hScale:clamp((c.params.hScale||1)*Math.pow(S.dplus/Math.max(c.m.dplus,60),0.7),0.35,1.9)};
+    const r=makeLoop(ctx,p);if(r){r.m=quickEval(G,r,S);cands.push(r);}
+    onProg(++done/total);await tick();
+  }
+  cands.sort((a,b)=>a.m.score-b.m.score);
+  const pick=[];
+  for(const c of cands){if(pick.every(q=>overlap(G,q,c)<0.5))pick.push(c);if(pick.length===3)break;}
+  for(const r of pick){r.startV=startV;}
+  return pick;
+}
+
+/* ---------- Analyse détaillée ---------- */
+function resample(G,route,step){
+  const nodes=pathNodes(G,route.path);
+  const la=[],lo=[],d=[],wy=[];let cum=0,next=0;
+  const geo=[];
+  for(let k=0;k<nodes.length;k++){
+    const [i,s]=nodes[k];geo.push([G.lat[i],G.lon[i],cum]);
+    if(k===nodes.length-1){la.push(G.lat[i]);lo.push(G.lon[i]);d.push(cum);wy.push(G.segWay[s]);break;}
+    const [j,s2]=nodes[k+1];const L=hav(G.lat[i],G.lon[i],G.lat[j],G.lon[j]);
+    while(next<=cum+L){const t=L>0?(next-cum)/L:0;la.push(G.lat[i]+(G.lat[j]-G.lat[i])*t);lo.push(G.lon[i]+(G.lon[j]-G.lon[i])*t);
+      d.push(next);wy.push(G.segWay[s2]);next+=step;}
+    cum+=L;
+  }
+  return {lat:la,lon:lo,d,way:wy,n:la.length,geo,len:cum};
+}
+function sideOffsets(sm,i,dists){
+  const a=Math.max(0,i-2),b=Math.min(sm.n-1,i+2);
+  const br=bearing(sm.lat[a],sm.lon[a],sm.lat[b],sm.lon[b]);
+  const out=[];for(const dd of dists){out.push(offsetLL(sm.lat[i],sm.lon[i],br-90,dd));out.push(offsetLL(sm.lat[i],sm.lon[i],br+90,dd));}
+  return out; // [g25,d25,g50,d50]
+}
+function smooth(z,h){const n=z.length,o=new Float32Array(n);for(let i=0;i<n;i++){let s=0,c=0;for(let k=Math.max(0,i-h);k<=Math.min(n-1,i+h);k++){s+=z[k];c++;}o[i]=s/c;}return o;}
+function zigzag(z,T){
+  const n=z.length;if(n<2)return [0];const ext=[0];let trend=0,cand=0,lo=0,hi=0;
+  for(let i=1;i<n;i++){
+    if(trend===0){if(z[i]<z[lo])lo=i;if(z[i]>z[hi])hi=i;
+      if(z[i]-z[lo]>=T){if(lo>0)ext.push(lo);trend=1;cand=i;}else if(z[hi]-z[i]>=T){if(hi>0)ext.push(hi);trend=-1;cand=i;}}
+    else if(trend===1){if(z[i]>z[cand])cand=i;else if(z[cand]-z[i]>=T){ext.push(cand);trend=-1;cand=i;}}
+    else{if(z[i]<z[cand])cand=i;else if(z[i]-z[cand]>=T){ext.push(cand);trend=1;cand=i;}}
+  }
+  if(trend!==0&&cand!==ext[ext.length-1])ext.push(cand);if(ext[ext.length-1]!==n-1)ext.push(n-1);return ext;
+}
+function techClass(w){
+  if(w.paved&&w.cls!=='single')return 'route';
+  const t=w.tech;return t<=1.2?'vert':t<=2.2?'bleu':t<=3.2?'rouge':'noir';
+}
+function analyze(G,route,S,sm,elev){
+  const L=S.L,n=sm.n,z=elev.z,step=n>1?sm.d[1]-sm.d[0]:20;
+  const zs=smooth(z,1),zz=smooth(z,3);
+  let dplus=0,dminus=0,ref=zs[0];
+  for(let i=1;i<n;i++){if(zs[i]-ref>=4){dplus+=zs[i]-ref;ref=zs[i];}else if(ref-zs[i]>=4){dminus+=ref-zs[i];ref=zs[i];}}
+  const grade=new Float32Array(n);
+  for(let i=0;i<n;i++){const a=Math.max(0,i-3),b=Math.min(n-1,i+3);grade[i]=sm.d[b]>sm.d[a]?(zz[b]-zz[a])/(sm.d[b]-sm.d[a]):0;}
+  const cls=new Array(n),ride=new Array(n);
+  const comp={route:0,vert:0,bleu:0,rouge:0,noir:0};let single=0,unknown=0,paved=0,mtbLen=0,npLen=0,resLen=0;
+  const types={route:0,piste:0,single:0};
+  const mtbNames=new Map();let ridec=0,hardc=0,pushc=0;
+  for(let i=0;i<n;i++){const w=G.ways[sm.way[i]];const ds=i<n-1?sm.d[i+1]-sm.d[i]:0;
+    cls[i]=techClass(w);comp[cls[i]]+=ds;types[typeOf(w)]+=ds;
+    if(w.cls==='single'){single+=ds;if(w.src==='inconnu')unknown+=ds;}if(w.paved)paved+=ds;
+    if(w.mtb){mtbLen+=ds;for(const nm of w.mtb)mtbNames.set(nm,(mtbNames.get(nm)||0)+ds);}
+    if(w.np)npLen+=ds;if(w.res)resLen+=ds;
+    if(grade[i]>0.03){const lim=climbLimit(w,L);const r=grade[i]<=lim?'ride':grade[i]<=lim+0.04?'hard':'push';ride[i]=r;
+      if(r==='ride')ridec+=ds;else if(r==='hard')hardc+=ds;else pushc+=ds;}
+    else ride[i]=grade[i]<-0.03?'down':'flat';
+  }
+  const pushRuns=[];
+  for(let i=0;i<n;i++){if(ride[i]!=='push')continue;let j=i;
+    while(j+1<n&&(ride[j+1]==='push'||(j+2<n&&ride[j+2]==='push')||(j+3<n&&ride[j+3]==='push')))j++;
+    const pl=sm.d[j]-sm.d[i]+step;if(pl>=60&&Math.abs(zz[j]-zz[i])>=8)pushRuns.push({i0:i,i1:j,len:pl,dz:zz[j]-zz[i]});i=j;}
+  { // portage isolé (moins de 60 m ou < 8 m de dénivelé) : requalifié en « difficile »
+    const inRun=new Uint8Array(n);for(const pr of pushRuns)for(let q=pr.i0;q<=pr.i1;q++)if(ride[q]==='push')inRun[q]=1;
+    for(let i=0;i<n;i++)if(ride[i]==='push'&&!inRun[i]){ride[i]='hard';const ds=i<n-1?sm.d[i+1]-sm.d[i]:0;pushc-=ds;hardc+=ds;}}
+  // Exposition
+  const expo=new Int8Array(n);const cliffNear=new Uint8Array(n);
+  const dropV=new Float32Array(n),dropSide=new Int8Array(n),alp=new Uint8Array(n);
+  const cliffSegs=[];for(const c of G.cliffs)for(let k=0;k<c.length-1;k++)cliffSegs.push([c[k],c[k+1]]);
+  const cg=new Map(),CC=150;
+  for(const sg of cliffSegs){const [x1,y1]=toXY(G,sg[0][0],sg[0][1]),[x2,y2]=toXY(G,sg[1][0],sg[1][1]);
+    const e=[x1,y1,x2,y2];for(let ix=Math.floor(Math.min(x1,x2)/CC)-1;ix<=Math.floor(Math.max(x1,x2)/CC)+1;ix++)for(let iy=Math.floor(Math.min(y1,y2)/CC)-1;iy<=Math.floor(Math.max(y1,y2)/CC)+1;iy++){const k=ix+','+iy;if(!cg.has(k))cg.set(k,[]);cg.get(k).push(e);}}
+  const fac=elev.src==='ign'?1:0.8;
+  for(let i=0;i<n;i++){const w=G.ways[sm.way[i]];if(w.paved&&w.cls!=='single')continue;
+    let sev=0;
+    if(elev.side&&elev.side[i]){const sd=elev.side[i],z0=z[i];
+      for(const [n25,n50,sdn] of [[sd[0],sd[2],1],[sd[1],sd[3],2]]){if(n25!==n25||n50!==n50)continue;
+        const d25=z0-n25,d50=z0-n50;let s=0;
+        if(d50>=60*fac&&d25>=24*fac)s=2;else if(d50>=40*fac&&d25>=15*fac)s=1;
+        if(s){sev=Math.max(sev,s);if(d50>dropV[i]){dropV[i]=d50;dropSide[i]=sdn;}}}}
+    const [px,py]=toXY(G,sm.lat[i],sm.lon[i]);const arr=cg.get(Math.floor(px/CC)+','+Math.floor(py/CC));
+    if(arr)for(const [x1,y1,x2,y2] of arr){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;const t=l2?clamp(((px-x1)*dx+(py-y1)*dy)/l2,0,1):0;
+      if(Math.hypot(px-x1-t*dx,py-y1-t*dy)<35){cliffNear[i]=1;break;}}
+    if(cliffNear[i])sev=Math.max(sev,sev>=1?2:1);
+    if(w.sac!=null&&w.sac>=4.5){sev=Math.max(sev,1);alp[i]=1;}
+    expo[i]=sev;}
+  const zones=[];
+  for(let i=0;i<n;i++){if(!expo[i])continue;let j=i,mx=expo[i],cl=cliffNear[i],al=alp[i],dr=dropV[i],sd=dropSide[i];
+    while(j+1<n&&(expo[j+1]||(j+2<n&&expo[j+2])||(j+3<n&&expo[j+3]))){j++;mx=Math.max(mx,expo[j]);cl=cl||cliffNear[j];al=al||alp[j];if(dropV[j]>dr){dr=dropV[j];sd=dropSide[j];}}
+    const len=sm.d[j]-sm.d[i]+step;
+    if(len>=40||mx>=2)zones.push({i0:i,i1:j,len,sev:mx,cliff:!!cl,alp:!!al,drop:dr,side:sd===1?'gauche':sd===2?'droite':null,
+      slope:dr>0?Math.atan(dr/50)*180/Math.PI:0,approx:elev.src!=='ign'});
+    i=j;}
+  // Sections
+  const ext=zigzag(zz,35),climbs=[],descents=[];
+  for(let k=0;k<ext.length-1;k++){const a=ext[k],b=ext[k+1];const dz=zz[b]-zz[a];if(Math.abs(dz)<50)continue;
+    const len=sm.d[b]-sm.d[a];if(len<150)continue;
+    let sgl=0,pv=0,techMax=0,techSum=0,techLen=0,known=0,r={ride:0,hard:0,push:0},maxG=0,names=new Map(),mtbS=new Map();
+    for(let i=a;i<b;i++){const w=G.ways[sm.way[i]],ds=sm.d[i+1]-sm.d[i];
+      if(w.cls==='single'){sgl+=ds;techSum+=w.tech*ds;techLen+=ds;techMax=Math.max(techMax,w.tech);if(w.src==='mtb')known+=ds;}
+      if(w.paved)pv+=ds;if(ride[i] in r)r[ride[i]]+=ds;
+      if(Math.abs(grade[i])>maxG)maxG=Math.abs(grade[i]);
+      if(w.name)names.set(w.name,(names.get(w.name)||0)+ds);
+      if(w.mtb)for(const nm of w.mtb)mtbS.set(nm,(mtbS.get(nm)||0)+ds);}
+    const top=[...names.entries()].sort((x,y)=>y[1]-x[1])[0];
+    const topM=[...mtbS.entries()].sort((x,y)=>y[1]-x[1])[0];
+    const sec={i0:a,i1:b,d0:sm.d[a],d1:sm.d[b],len,dz:Math.abs(dz),avg:Math.abs(dz)/len,maxG,
+      single:sgl/len,paved:pv/len,techMax,techAvg:techLen?techSum/techLen:0,known:techLen?known/techLen:0,
+      name:top?top[0]:'',mtb:topM?topM[0]:'',z0:zz[a],z1:zz[b]};
+    if(dz>0){sec.ride=r.ride/len;sec.hard=r.hard/len;sec.push=r.push/len;climbs.push(sec);}
+    else{
+      let st=sec.single*2.3+Math.min(sec.dz/350,1)*1.1+(sec.avg>=0.08&&sec.avg<=0.32?0.9:0.35)
+        +(sec.techAvg>=Math.max(0.8,L.max-1.2)&&sec.techMax<=L.max+0.3?0.6:0)-sec.paved*1.6;
+      sec.stars=clamp(Math.round(st),0,5);
+      sec.expo=zones.filter(zn=>zn.i0<b&&zn.i1>a).length;
+      descents.push(sec);}
+  }
+  // POI
+  const PG=new Map(),PC=250;
+  for(let i=0;i<n;i+=2){const [x,y]=toXY(G,sm.lat[i],sm.lon[i]);const k=Math.floor(x/PC)+','+Math.floor(y/PC);if(!PG.has(k))PG.set(k,[]);PG.get(k).push(i);}
+  const pois=[];
+  for(const p of G.pois){const info=POI_INFO[p.type];const [x,y]=toXY(G,p.lat,p.lon);let best=null;
+    for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++){const a=PG.get((Math.floor(x/PC)+ix)+','+(Math.floor(y/PC)+iy));if(!a)continue;
+      for(const i of a){const d=hav(p.lat,p.lon,sm.lat[i],sm.lon[i]);if(d<=info.d&&(!best||d<best.dist))best={i,dist:d};}}
+    if(best)pois.push({...p,i:best.i,km:sm.d[best.i]/1000,off:best.dist});}
+  pois.sort((a,b)=>a.km-b.km);
+  let level='vert';for(const c of ['bleu','rouge','noir'])if(comp[c]>=150)level=c;
+  const len=sm.d[n-1];
+  const hours=len/1000/L.v+dplus/L.vc+(pushc/1000)*(1/3.5-1/L.v);
+  return {n,len,dplus,dminus,z,zs,grade,cls,ride,expo,zones,climbs,descents,pois,comp,single,unknown,paved,mtbLen,types,pushRuns,level,
+    mtbNames:[...mtbNames.entries()].sort((a,b)=>b[1]-a[1]),npLen,resLen,ridec,hardc,pushc,hours,src:elev.src,
+    zmin:Math.min(...z),zmax:Math.max(...z)};
+}
+function buildGPX(name,sm,A){
+  const esc=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const zAt=d=>{let lo=0,hi=sm.n-1;while(hi-lo>1){const m=(lo+hi)>>1;if(sm.d[m]<=d)lo=m;else hi=m;}
+    const t=sm.d[hi]>sm.d[lo]?(d-sm.d[lo])/(sm.d[hi]-sm.d[lo]):0;return A.zs[lo]+(A.zs[hi]-A.zs[lo])*clamp(t,0,1);};
+  let s=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Traceur VTT Isère" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${esc(name)}</name><desc>${(A.len/1000).toFixed(1)} km, D+ ${Math.round(A.dplus)} m. Données © OpenStreetMap, IGN.</desc></metadata>\n`;
+  for(const p of A.pois){const info=POI_INFO[p.type];
+    s+=`<wpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}"><name>${esc(info.lab+(p.name?' – '+p.name:''))}</name><type>${p.type}</type></wpt>\n`;}
+  A.zones.forEach(zn=>{const i=zn.i0;s+=`<wpt lat="${sm.lat[i].toFixed(6)}" lon="${sm.lon[i].toFixed(6)}"><name>${esc(zoneLabel(zn))}</name><desc>${esc(zoneWhy(zn).join(' ; '))}</desc><type>danger</type></wpt>\n`;});
+  A.pushRuns.forEach(pr=>{const i=pr.i0;s+=`<wpt lat="${sm.lat[i].toFixed(6)}" lon="${sm.lon[i].toFixed(6)}"><name>${esc('Portage probable ~'+Math.round(pr.len)+' m')}</name><type>portage</type></wpt>\n`;});
+  A.descents.forEach((dsc,k)=>{const i=dsc.i0;s+=`<wpt lat="${sm.lat[i].toFixed(6)}" lon="${sm.lon[i].toFixed(6)}"><name>${esc('Descente '+(k+1)+' – '+Math.round(dsc.dz)+' m'+(dsc.name?' ('+dsc.name+')':''))}</name><type>descente</type></wpt>\n`;});
+  s+=`<trk><name>${esc(name)}</name><trkseg>\n`;
+  for(const [la,lo,d] of sm.geo)s+=`<trkpt lat="${la.toFixed(6)}" lon="${lo.toFixed(6)}"><ele>${zAt(d).toFixed(1)}</ele></trkpt>\n`;
+  s+=`</trkseg></trk>\n</gpx>\n`;return s;
+}
+
+/* ---------- Types de chemin, exposition, étapes ---------- */
+function typeOf(w){if(w.cls==='single')return 'single';if(w.paved)return 'route';return 'piste';}
+function zoneLabel(zn){return zn.sev>=2?'Exposition marquée':'Pente latérale forte';}
+function zoneWhy(zn){const r=[];
+  if(zn.drop>0)r.push(`terrain ${Math.round(zn.drop)} m plus bas à 50 m sur la ${zn.side} (pente ~${Math.round(zn.slope)}°)${zn.approx?', relief approximatif':''}`);
+  if(zn.cliff)r.push('falaise ou arête cartographiée à moins de 35 m');
+  if(zn.alp)r.push('sentier classé alpin (T4 ou plus) dans OpenStreetMap');
+  return r;}
+function sectionInfo(G,sm,A,d0,d1){
+  const st=sm.n>1?sm.d[1]-sm.d[0]:20;const i0=clamp(Math.round(d0/st),0,sm.n-1),i1=clamp(Math.round(d1/st),0,sm.n-1);
+  const ty={route:0,piste:0,single:0};let up=0,down=0,push=0,techMax=0,known=true,ref=A.zs[i0];
+  const names=new Map();
+  for(let i=i0;i<i1;i++){const w=G.ways[sm.way[i]],ds=sm.d[i+1]-sm.d[i];ty[typeOf(w)]+=ds;
+    const z=A.zs[i+1];if(z-ref>=3){up+=z-ref;ref=z;}else if(ref-z>=3){down+=ref-z;ref=z;}
+    if(A.ride[i]==='push')push+=ds;
+    if(w.cls==='single'){techMax=Math.max(techMax,w.tech);if(w.src!=='mtb')known=false;}
+    if(w.name)names.set(w.name,(names.get(w.name)||0)+ds);}
+  const dom=Object.entries(ty).sort((a,b)=>b[1]-a[1])[0][0];
+  return {len:Math.max(0,sm.d[i1]-sm.d[i0]),up,down,push,dom,ty,techMax,known};
+}
+function postsAlong(G,sm){
+  const out=[],PC=200,PG=new Map();
+  for(let i=0;i<sm.n;i++){const [x,y]=toXY(G,sm.lat[i],sm.lon[i]);const k=Math.floor(x/PC)+','+Math.floor(y/PC);if(!PG.has(k))PG.set(k,[]);PG.get(k).push(i);}
+  for(const p of (G.posts||[])){const [x,y]=toXY(G,p.lat,p.lon);let best=null;
+    for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++){const a=PG.get((Math.floor(x/PC)+ix)+','+(Math.floor(y/PC)+iy));if(!a)continue;
+      for(const i of a){const d=hav(p.lat,p.lon,sm.lat[i],sm.lon[i]);if(d<=35&&(!best||d<best.off))best={i,off:d};}}
+    if(best)out.push({...p,d:sm.d[best.i],off:best.off});}
+  return out.sort((a,b)=>a.d-b.d);
+}
+function keySteps(G,route,sm,A){
+  const nodes=pathNodes(G,route.path),n=nodes.length;
+  const cum=new Float64Array(n);
+  for(let k=1;k<n;k++){const a=nodes[k-1][0],b=nodes[k][0];cum[k]=cum[k-1]+hav(G.lat[a],G.lon[a],G.lat[b],G.lon[b]);}
+  const total=cum[n-1];
+  const ptAt=d=>{d=clamp(d,0,total);let lo=0,hi=n-1;while(hi-lo>1){const m=(lo+hi)>>1;if(cum[m]<=d)lo=m;else hi=m;}
+    const t=cum[hi]>cum[lo]?(d-cum[lo])/(cum[hi]-cum[lo]):0;const a=nodes[lo][0],b=nodes[hi][0];
+    return [G.lat[a]+(G.lat[b]-G.lat[a])*t,G.lon[a]+(G.lon[b]-G.lon[a])*t];};
+  const brg=(p,q)=>bearing(p[0],p[1],q[0],q[1]);
+  const norm=a=>((a%360)+540)%360-180;
+  const branchBrg=(v,s)=>{const ns=G.segNodes[s],L=ns.length,fwd=G.segA[s]===v;let d=0,prev=fwd?ns[0]:ns[L-1];
+    for(let k=1;k<L;k++){const id=fwd?ns[k]:ns[L-1-k];d+=hav(G.lat[prev],G.lon[prev],G.lat[id],G.lon[id]);prev=id;if(d>=25)break;}
+    return bearing(G.lat[v],G.lon[v],G.lat[prev],G.lon[prev]);};
+  const steps=[];
+  const p0=ptAt(0);steps.push({kind:'start',d:0,lat:p0[0],lon:p0[1],brgOut:brg(p0,ptAt(40)),ang:0,branches:[],wout:G.ways[G.segWay[nodes[0][1]]]});
+  for(let k=1;k<n-1;k++){
+    const sIn=nodes[k][1],sOut=nodes[k+1][1];if(sIn===sOut)continue;
+    const v=nodes[k][0];const deg=G.as[v+1]-G.as[v];if(deg<3)continue;
+    const d=cum[k];const bin=brg(ptAt(d-25),ptAt(d)),bout=brg(ptAt(d),ptAt(d+25));
+    const ang=norm(bout-bin);
+    const wi=G.ways[G.segWay[sIn]],wo=G.ways[G.segWay[sOut]];
+    const typeCh=typeOf(wi)!==typeOf(wo);
+    const nameCh=!!wo.name&&wo.name!==wi.name;
+    const mtbCh=((wo.mtb||[])[0]||'')!==((wi.mtb||[])[0]||'')&&!!(wo.mtb&&wo.mtb.length);
+    const branches=[];let amb=null;
+    for(let a=G.as[v];a<G.as[v+1];a++){const s=G.aSeg[a];if(s===sIn||s===sOut)continue;
+      const bb=branchBrg(v,s);branches.push(norm(bb-bin));const da=norm(bb-bout);
+      if(Math.abs(da)<35)amb=da<0?'droite':'gauche';}
+    if(!(Math.abs(ang)>=35||typeCh||mtbCh||amb||(nameCh&&Math.abs(ang)>=20)))continue;
+    const last=steps[steps.length-1];
+    if(last.kind==='turn'&&d-last.d<40){ // deux carrefours rapprochés : fusion
+      last.ang=norm(bout-last.bin);last.wout=wo;last.amb=last.amb||amb;continue;}
+    steps.push({kind:'turn',d,lat:G.lat[v],lon:G.lon[v],bin,ang,amb,branches,wout:wo});
+  }
+  const pe=ptAt(total);steps.push({kind:'end',d:total,lat:pe[0],lon:pe[1],ang:0,branches:[]});
+  const posts=postsAlong(G,sm);
+  for(let k=0;k<steps.length;k++){const st=steps[k],nx=steps[k+1];
+    st.sec=nx?sectionInfo(G,sm,A,st.d,nx.d):null;
+    let best=null;for(const p of posts){const dd=Math.abs(p.d-st.d);if(dd<=60&&(!best||dd<Math.abs(best.d-st.d)))best=p;}
+    st.post=best;
+    if(nx){const lim=Math.max(nx.d+60,st.d+3000);st.nextPost=posts.find(p=>p.d>st.d+60&&p.d<=lim&&(!best||p.name!==best.name))||null;}
+  }
+  return steps;
+}
+
+/* ---------- MNT (tuiles Terrarium) ---------- */
+const DEM={tiles:new Map()};
+function demPix(z,gx,gy){const t=DEM.tiles.get(z+'/'+(gx>>8)+'/'+(gy>>8));if(!t)return NaN;return t[(gy&255)*256+(gx&255)];}
+function lonLatToPix(lat,lon,z){const n=256*2**z;const lr=lat*D2R;return [(lon+180)/360*n,(1-Math.log(Math.tan(lr)+1/Math.cos(lr))/Math.PI)/2*n];}
+function demAt(lat,lon,z){
+  let [px,py]=lonLatToPix(lat,lon,z);px-=0.5;py-=0.5;
+  const x0=Math.floor(px),y0=Math.floor(py),fx=px-x0,fy=py-y0;
+  const a=demPix(z,x0,y0),b=demPix(z,x0+1,y0),c=demPix(z,x0,y0+1),d=demPix(z,x0+1,y0+1);
+  if(a!==a||b!==b||c!==c||d!==d)return a;
+  return a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+d*fx*fy;
+}
+function tilesFor(points,z){const s=new Set();for(const [la,lo] of points){const [px,py]=lonLatToPix(la,lo,z);
+  for(const dx of [-1,1])for(const dy of [-1,1])s.add(z+'/'+Math.floor((px+dx)/256)+'/'+Math.floor((py+dy)/256));}return [...s];}
+function tilesForBBox(b,z){const [x0,y1]=lonLatToPix(b[0],b[1],z),[x1,y0]=lonLatToPix(b[2],b[3],z);const out=[];
+  for(let x=Math.floor(x0/256)-1;x<=Math.floor(x1/256)+1;x++)for(let y=Math.floor(y0/256)-1;y<=Math.floor(y1/256)+1;y++)out.push(z+'/'+x+'/'+y);return out;}
+</script>
+
+<!-- ============================ INTERFACE ============================ -->
+<script>
+"use strict";
+const SECTEURS={
+  "Chartreuse":[["Saint-Pierre-de-Chartreuse",45.3436,5.8155],["Saint-Laurent-du-Pont",45.3900,5.7345],["Le Sappey-en-Chartreuse",45.2622,5.7766],["Saint-Pierre-d'Entremont",45.4136,5.8560],["Col de Porte",45.2905,5.7710]],
+  "Vercors":[["Villard-de-Lans",45.0712,5.5530],["Lans-en-Vercors",45.1283,5.5893],["Autrans",45.1750,5.5434],["Corrençon-en-Vercors",45.0333,5.5241],["Méaudre",45.1281,5.5276]],
+  "Taillefer":[["La Morte (Alpe du Grand Serre)",45.0266,5.8617],["Ornon",45.0333,5.9700],["Lavaldens",44.9955,5.8851]],
+  "Oisans":[["Le Bourg-d'Oisans",45.0553,6.0305],["L'Alpe d'Huez",45.0922,6.0686],["Les Deux Alpes",45.0083,6.1236],["Allemond",45.1325,6.0408],["Villard-Reculas",45.0928,6.0336]],
+  "Matheysine":[["La Mure",44.9031,5.7881],["Laffrey",45.0311,5.7694],["Valbonnais",44.9006,5.9061],["Saint-Honoré",44.9461,5.8186]],
+  "Trièves":[["Mens",44.8158,5.7514],["Clelles",44.8283,5.6189],["Monestier-de-Clermont",44.9181,5.6331],["Gresse-en-Vercors",44.9003,5.5653],["Lalley",44.7553,5.6783]],
+  "Dévoluy":[["Saint-Étienne-en-Dévoluy",44.6983,5.8961],["Superdévoluy",44.6889,5.9289],["Agnières-en-Dévoluy",44.6908,5.8664],["La Joue du Loup",44.6681,5.8875]]
+};
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+(function(){let framed=false;try{framed=window.self!==window.top;}catch(e){framed=true;}
+  if(framed||location.protocol==='about:'){document.addEventListener('DOMContentLoaded',()=>{const d=document.createElement('div');
+    d.style.cssText='background:#fbe6dc;color:#8a3510;padding:10px 12px;border-radius:8px;font-size:12.5px;margin:0 0 12px';
+    d.textContent="Tu sembles consulter ce fichier dans un aperçu. Pour que le calcul fonctionne, télécharge-le et ouvre-le directement dans Chrome ou Firefox.";
+    document.getElementById('panel').prepend(d);});}})();
+const $=s=>document.querySelector(s);
+const state={start:null,startName:'',level:'bleu',G:null,gbbox:null,routes:[],sel:-1,seed:1,colorMode:'tech',tab:'resume'};
+
+/* ---------- Carte ---------- */
+if(!window.L){document.getElementById('map').innerHTML='<div style="padding:30px;color:#8a3510">La bibliothèque de carte n\'a pas pu être chargée. Vérifie ta connexion internet puis recharge la page.</div>';throw new Error('Leaflet non chargé');}
+const map=L.map('map',{zoomControl:true}).setView([45.10,5.75],9);
+const ign=(layer,fmt)=>L.tileLayer(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${fmt}`,{maxZoom:19,maxNativeZoom:fmt==='image/jpeg'?19:18,attribution:'© IGN'});
+const bases={
+  "Plan IGN":ign('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','image/png'),
+  "OpenTopoMap":L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap, SRTM · © OpenTopoMap (CC-BY-SA)'}),
+  "Photos aériennes IGN":ign('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),
+  "OpenStreetMap":L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© contributeurs OpenStreetMap'})
+};
+bases["Plan IGN"].addTo(map);
+const overlays={
+  "Parcours VTT balisés":L.tileLayer('https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png',{maxZoom:18,opacity:0.8,attribution:'© waymarkedtrails.org, OpenStreetMap'}),
+  "Relief ombré IGN":ign('ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW','image/png').setOpacity(0.35)
+};
+L.control.layers(bases,overlays,{position:'topright'}).addTo(map);
+L.control.scale({imperial:false}).addTo(map);
+const routeLayer=L.layerGroup().addTo(map), poiLayer=L.layerGroup().addTo(map), ghostLayer=L.layerGroup().addTo(map);
+let startMarker=null, hoverMarker=null;
+
+const Legend=L.Control.extend({options:{position:'bottomleft'},onAdd(){const d=L.DomUtil.create('div','legend');d.id='legend';L.DomEvent.disableClickPropagation(d);return d;}});
+map.addControl(new Legend());
+function renderLegend(){
+  const el=$('#legend');if(!el)return;
+  const items={
+    tech:[['var(--vert)','Facile (S0–S1)'],['var(--bleu)','Moyen (S2)'],['var(--rouge)','Difficile (S3)'],['var(--noir)','Très difficile (S4+)'],['var(--route)','Route / bitume']],
+    pente:[['#5b3fd6','Descente > 15 %'],['#4f8fe0','Descente 3–15 %'],['#7ccf6a','Plat'],['#f2c14e','Montée 3–8 %'],['#f08a3c','Montée 8–12 %'],['#e0453a','Montée 12–16 %'],['#8e1b3f','Montée > 16 %']],
+    ride:[['#3a9d5d','Montée roulable'],['#f08a3c','Montée difficile'],['#d1342f','Portage probable'],['#8aa7c9','Descente / plat']]
+  }[state.colorMode];
+  el.innerHTML=`<select id="cmode"><option value="tech">Difficulté technique</option><option value="pente">Pente</option><option value="ride">Roulabilité des montées</option></select>`+
+    items.map(([c,t])=>`<div class="li"><i style="background:${c}"></i>${t}</div>`).join('')+
+    (state.colorMode==='tech'?`<div class="li" style="color:var(--muted)"><i class="dash" style="color:#666"></i>Niveau estimé (non renseigné)</div>`:'');
+  const sel=el.querySelector('#cmode');sel.value=state.colorMode;sel.onchange=()=>{state.colorMode=sel.value;renderLegend();drawSelected();};
+}
+renderLegend();
+
+/* ---------- Panneau ---------- */
+const pre=$('#preset');
+for(const [sect,list] of Object.entries(SECTEURS)){const g=document.createElement('optgroup');g.label=sect;
+  list.forEach(([nm,la,lo])=>{const o=document.createElement('option');o.value=`${la},${lo},${nm}`;o.textContent=nm;g.appendChild(o);});pre.appendChild(g);}
+pre.onchange=()=>{if(!pre.value)return;const [la,lo,...nm]=pre.value.split(',');setStart(+la,+lo,nm.join(','));map.setView([+la,+lo],12);};
+map.on('click',e=>setStart(e.latlng.lat,e.latlng.lng,null));
+function setStart(lat,lon,name){
+  state.start=[lat,lon];state.startName=name||'';
+  if(!startMarker)startMarker=L.marker([lat,lon],{draggable:true,icon:L.divIcon({className:'',html:'<div class="start-ic">🚵</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map)
+    .on('dragend',ev=>{const p=ev.target.getLatLng();setStart(p.lat,p.lng,null);});
+  else startMarker.setLatLng([lat,lon]);
+  $('#startinfo').innerHTML=`Départ : <b>${name?escapeHtml(name):lat.toFixed(4)+', '+lon.toFixed(4)}</b> <span style="color:var(--muted)">(déplaçable)</span>`;
+  save();
+}
+const escapeHtml=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const dist=$('#dist'),dplus=$('#dplus');
+const upd=()=>{$('#distv').textContent=dist.value+' km';$('#dplusv').textContent=dplus.value+' m';save();};
+dist.oninput=upd;dplus.oninput=upd;
+document.querySelectorAll('#levels button').forEach(b=>b.onclick=()=>{state.level=b.dataset.l;
+  document.querySelectorAll('#levels button').forEach(x=>x.classList.toggle('on',x===b));$('#leveldesc').textContent=NIVEAUX[state.level].desc;save();});
+$('#leveldesc').textContent=NIVEAUX.bleu.desc;
+['optMarked','optPaved','optPush','optNP','optIGN'].forEach(id=>$('#'+id).onchange=save);
+
+function save(){try{localStorage.setItem('traceurvtt',JSON.stringify({start:state.start,startName:state.startName,level:state.level,dist:dist.value,dplus:dplus.value,
+  o:['optMarked','optPaved','optPush','optNP','optIGN'].map(id=>$('#'+id).checked)}));}catch(e){}}
+(function load(){try{const s=JSON.parse(localStorage.getItem('traceurvtt')||'null');if(!s)return;
+  if(s.dist)dist.value=s.dist;if(s.dplus)dplus.value=s.dplus;
+  if(s.o)['optMarked','optPaved','optPush','optNP','optIGN'].forEach((id,k)=>$('#'+id).checked=!!s.o[k]);
+  if(s.level){const b=document.querySelector(`#levels button[data-l=${s.level}]`);if(b)b.click();}
+  upd();if(s.start){setStart(s.start[0],s.start[1],s.startName||null);map.setView(s.start,12);}}catch(e){}})();
+
+/* Recherche IGN */
+let sTimer=null;
+$('#search').oninput=e=>{clearTimeout(sTimer);const q=e.target.value.trim();if(q.length<3){$('#searchres').style.display='none';return;}
+  sTimer=setTimeout(async()=>{
+    try{
+      const urls=[`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&limit=5&index=poi&lat=45.1&lon=5.8`,
+                  `https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&limit=5&lat=45.1&lon=5.8`];
+      const res=await Promise.allSettled(urls.map(u=>fetch(u).then(r=>r.json())));
+      const feats=[];res.forEach(r=>{if(r.status==='fulfilled')for(const f of (r.value.features||[]))feats.push(f);});
+      const ul=$('#searchres');ul.innerHTML='';
+      feats.slice(0,8).forEach(f=>{const p=f.properties||{};const [lo,la]=f.geometry.coordinates;
+        const lab=p.label||(p.toponym? p.toponym+(p.city?', '+[].concat(p.city)[0]:'') : (p.name||'?'));
+        const li=document.createElement('li');li.textContent=lab+(p.category?' · '+[].concat(p.category)[0]:'');
+        li.onclick=()=>{setStart(la,lo,lab);map.setView([la,lo],13);ul.style.display='none';};ul.appendChild(li);});
+      ul.style.display=feats.length?'block':'none';
+    }catch(err){toast("Recherche indisponible pour le moment.");}
+  },350);};
+
+/* ---------- Utilitaires ---------- */
+function toast(msg,ms=4500){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',ms);}
+function busy(msg,frac,sm){const b=$('#busy');if(msg===false){b.style.display='none';return;}b.style.display='flex';
+  if(msg)$('#busymsg').textContent=msg;if(frac!=null)$('#busybar').style.width=Math.round(frac*100)+'%';$('#busysm').textContent=sm||'';}
+const tick=()=>new Promise(r=>setTimeout(r,0));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function pool(items,k,fn){let i=0;const w=Array.from({length:k},async()=>{while(i<items.length){const j=i++;await fn(items[j],j);}});await Promise.all(w);}
+
+async function fetchT(url,opt,ms){const ac=new AbortController();const t=setTimeout(()=>ac.abort(),ms);
+  try{return await fetch(url,{...opt,signal:ac.signal});}finally{clearTimeout(t);}}
+async function probe(url){try{const r=await fetchT(url,{},12000);return r.status;}catch(e){return 0;}}
+async function overpass(q){
+  const errs=[];
+  for(let pass=0;pass<2;pass++){
+    for(const url of OVERPASS){
+      try{busy(null,null,`Serveur ${new URL(url).host}${pass?' (2e essai)':''}…`);
+        const r=await fetchT(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},150000);
+        if(r.status===429||r.status===504){errs.push(new URL(url).host+' : surchargé ('+r.status+')');continue;}
+        if(!r.ok){errs.push(new URL(url).host+' : HTTP '+r.status);continue;}
+        const text=await r.text();const j=JSON.parse(text);
+        if(j.remark&&/runtime error|timed out|out of memory/i.test(j.remark)&&!(j.elements||[]).length){errs.push(new URL(url).host+' : '+j.remark.slice(0,80));continue;}
+        Object.defineProperty(j,'_raw',{value:text});
+        return j;}
+      catch(e){errs.push(new URL(url).host+' : '+(e.name==='AbortError'?'délai dépassé':'connexion impossible'));}
+    }
+    if(pass===0)await sleep(3000);
+  }
+  // Diagnostic : le réseau est-il bloqué, ou les serveurs saturés ?
+  busy('Diagnostic de la connexion…',null,'');
+  const [osm,ign,tiny]=await Promise.all([
+    probe('https://overpass-api.de/api/status'),
+    probe('https://data.geopf.fr/geocodage/search?q=grenoble&limit=1'),
+    probe('https://overpass-api.de/api/interpreter?data='+encodeURIComponent('[out:json];node(1);out;'))]);
+  const framed=(()=>{try{return window.self!==window.top;}catch(e){return true;}})();
+  if(!osm&&!ign&&!tiny){
+    throw new Error(framed
+      ? "Le fichier est ouvert dans un aperçu qui bloque les connexions internet. Télécharge-le et ouvre-le directement dans Chrome ou Firefox (double-clic sur le fichier)."
+      : "Ton navigateur ne peut joindre aucun service de données (OpenStreetMap, IGN). Ouvre le fichier dans Chrome ou Firefox, désactive un éventuel bloqueur de publicité pour cette page, ou essaie hors réseau d'entreprise.");
+  }
+  if(!tiny&&ign){
+    throw new Error("Les serveurs OpenStreetMap (overpass-api.de) sont bloqués depuis ce réseau ou ce navigateur, alors que l'IGN répond. Vérifie un bloqueur de publicité ou le pare-feu, ou essaie sur une autre connexion (partage 4G par exemple).");
+  }
+  throw new Error("Les serveurs OpenStreetMap répondent mais n'ont pas pu traiter la zone (surcharge ou zone trop lourde). Réessaie dans une minute ou réduis la distance. Détail : "+errs.slice(-3).join(' · '));
+}
+function overpassQuery(b){const bb=b.map(v=>v.toFixed(5)).join(',');
+return `[out:json][timeout:180];
+way["highway"~"^(track|path|bridleway|cycleway|footway|unclassified|tertiary|secondary|residential|service|living_street|road)$"]["access"!~"^(no|private)$"]["bicycle"!~"^(no|dismount|private)$"]["service"!~"^(driveway|parking_aisle|drive-through|emergency_access)$"]["area"!="yes"](${bb})->.w;
+.w out body;
+.w >;
+out skel qt;
+(
+ node["tourism"="viewpoint"](${bb});
+ node["natural"~"^(peak|spring|saddle)$"](${bb});
+ node["mountain_pass"="yes"](${bb});
+ node["amenity"~"^(drinking_water|fountain|shelter)$"](${bb});
+ node["drinking_water"="yes"](${bb});
+ node["information"="guidepost"](${bb});
+ nwr["tourism"~"^(alpine_hut|wilderness_hut)$"](${bb});
+);
+out center;
+way["natural"~"^(cliff|arete)$"](${bb});
+out tags geom;
+rel["route"="mtb"](${bb});
+out body;
+rel["boundary"="national_park"](${bb})->.np;
+.np map_to_area->.npa;
+way(area.npa)["highway"]->.npw;
+.npw convert npway ::id=id();
+out;
+(rel["leisure"="nature_reserve"](${bb});rel["boundary"="protected_area"]["protect_class"~"^(1|1a|1b|4)$"](${bb}););
+map_to_area->.ra;
+way(area.ra)["highway"]->.rw;
+.rw convert resway ::id=id();
+out;`;}
+
+/* Tuiles MNT */
+const demPending=new Map();
+function loadDemTile(key){
+  if(DEM.tiles.has(key))return Promise.resolve();
+  if(demPending.has(key))return demPending.get(key);
+  const [z,x,y]=key.split('/').map(Number);
+  const p=new Promise(res=>{const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+      const d=ctx.getImageData(0,0,256,256).data;const a=new Float32Array(65536);for(let i=0;i<65536;i++)a[i]=d[i*4]*256+d[i*4+1]+d[i*4+2]/256-32768;DEM.tiles.set(key,a);}catch(e){}res();};
+    img.onerror=()=>res();
+    const n=2**z;img.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${((x%n)+n)%n}/${y}.png`;});
+  demPending.set(key,p);return p;
+}
+async function ensureTiles(keys,onProg){let k=0;await pool(keys,8,async key=>{await loadDemTile(key);k++;if(onProg)onProg(k/keys.length);});}
+
+/* Altimétrie IGN */
+async function ignElevations(pts,onProg){
+  const out=new Float32Array(pts.length).fill(NaN);const CH=120;let fails=0,done=0;
+  const starts=[];for(let i=0;i<pts.length;i+=CH)starts.push(i);
+  await pool(starts,3,async i=>{
+    const ch=pts.slice(i,i+CH);
+    const url=`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${ch.map(p=>p[1].toFixed(6)).join('|')}&lat=${ch.map(p=>p[0].toFixed(6)).join('|')}&resource=ign_rge_alti_wld&zonly=true`;
+    let ok=false;
+    for(let a=0;a<3&&!ok;a++){
+      try{const r=await fetchT(url,{},20000);if(r.status===429){await sleep(1500);continue;}if(!r.ok)throw 0;const j=await r.json();
+        (j.elevations||[]).forEach((e,k)=>{const v=typeof e==='number'?e:(e&&e.z);if(v!=null&&v>-1000)out[i+k]=v;});ok=true;}
+      catch(e){await sleep(500);}
+    }
+    if(!ok&&++fails>3)throw new Error('IGN indisponible');
+    done++;if(onProg)onProg(done/starts.length);
+    await sleep(650);
+  });
+  return out;
+}
+/* Mémoire locale des chemins téléchargés (IndexedDB, 21 jours) */
+const Cache={db:null,
+  open(){if(this.db)return Promise.resolve(this.db);return new Promise((res,rej)=>{const r=indexedDB.open('traceurvtt',1);
+    r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('meta',{keyPath:'key'});d.createObjectStore('data',{keyPath:'key'});};
+    r.onsuccess=()=>{this.db=r.result;res(r.result);};r.onerror=()=>rej(r.error);});},
+  req(store,mode,fn){return this.open().then(db=>new Promise((res,rej)=>{const t=db.transaction(store,mode);const q=fn(t.objectStore(store));
+    t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);}));},
+  async find(b){try{const metas=await this.req('meta','readonly',s=>s.getAll());const now=Date.now();
+    const m=(metas||[]).filter(x=>now-x.ts<21*864e5&&contains(x.bbox,b)).sort((a,c)=>c.ts-a.ts)[0];if(!m)return null;
+    const d=await this.req('data','readonly',s=>s.get(m.key));return d?{json:JSON.parse(d.text),bbox:m.bbox,ts:m.ts}:null;}catch(e){return null;}},
+  async put(b,text){try{const key=b.map(v=>v.toFixed(3)).join(',');const metas=(await this.req('meta','readonly',s=>s.getAll()))||[];
+    metas.sort((a,c)=>a.ts-c.ts);while(metas.length>=4){const o=metas.shift();await this.req('data','readwrite',s=>s.delete(o.key));await this.req('meta','readwrite',s=>s.delete(o.key));}
+    await this.req('data','readwrite',s=>s.put({key,text}));await this.req('meta','readwrite',s=>s.put({key,bbox:b,ts:Date.now()}));}catch(e){}}
+};
+
+/* ---------- Pipeline ---------- */
+function settings(){return {distKm:+dist.value,dplus:+dplus.value,L:NIVEAUX[state.level],levelKey:state.level,
+  preferMarked:$('#optMarked').checked,avoidPaved:$('#optPaved').checked,allowPush:$('#optPush').checked,avoidNP:$('#optNP').checked,ign:$('#optIGN').checked};}
+function contains(a,b){return a&&a[0]<=b[0]&&a[1]<=b[1]&&a[2]>=b[2]&&a[3]>=b[3];}
+
+async function ensureGraph(S){
+  const [la,lo]=state.start;const R=clamp(S.distKm*300,5000,17000)+1000;
+  const dla=R/110540,dlo=R/(111320*Math.cos(la*D2R));
+  const q=0.02,bbox0=[la-dla,lo-dlo,la+dla,lo+dlo];
+  const bbox=[Math.floor(bbox0[0]/q)*q,Math.floor(bbox0[1]/q)*q,Math.ceil(bbox0[2]/q)*q,Math.ceil(bbox0[3]/q)*q];
+  if(state.G&&contains(state.gbbox,bbox0))return state.G;
+  busy('Recherche des chemins déjà téléchargés…',0.03,'');
+  let json,gb=bbox;const hit=await Cache.find(bbox0);
+  if(hit){json=hit.json;gb=hit.bbox;busy('Chemins chargés depuis la mémoire du navigateur',0.3,`Téléchargés le ${new Date(hit.ts).toLocaleDateString('fr')}`);await tick();}
+  else{
+    busy('Téléchargement des chemins OpenStreetMap…',0.05,`Zone de ${Math.round(2*R/1000)} × ${Math.round(2*R/1000)} km — 20 à 60 s la première fois, ensuite mémorisé`);
+    json=await overpass(overpassQuery(bbox));
+    if(json._raw)Cache.put(bbox,json._raw);
+  }
+  const bboxUsed=gb;
+  busy('Construction du réseau de chemins…',0.3,`${(json.elements||[]).length.toLocaleString('fr')} éléments reçus`);await tick();
+  const G=buildGraph(json);
+  if(G.m<50)throw new Error("Très peu de chemins trouvés dans cette zone.");
+  busy('Chargement du relief…',0.35,'Modèle numérique de terrain');
+  const keys=tilesForBBox(bboxUsed,13);await ensureTiles(keys,f=>busy(null,0.35+0.25*f));
+  let miss=0;for(let i=0;i<G.n;i++){const e=demAt(G.lat[i],G.lon[i],13);G.ele[i]=e;if(e!==e)miss++;}
+  if(miss>G.n*0.2){
+    busy('Relief de secours via IGN…',0.6,'Le relief principal est indisponible, interrogation de l\'IGN (plus lent)');
+    const vs=[];for(let i=0;i<G.n;i++)if(G.as[i+1]>G.as[i])vs.push(i);
+    const z=await ignElevations(vs.map(i=>[G.lat[i],G.lon[i]]),f=>busy(null,0.6+0.2*f));vs.forEach((v,k)=>G.ele[v]=z[k]);
+    for(let s=0;s<G.m;s++){const ns=G.segNodes[s],sub=G.segSub[s],L=G.segLen[s];const za=G.ele[ns[0]],zb=G.ele[ns[ns.length-1]];let c=0;
+      for(let k=1;k<ns.length-1;k++){c+=sub[k-1];G.ele[ns[k]]=za+(zb-za)*c/L;}}
+  }
+  state.G=G;state.gbbox=bboxUsed;return G;
+}
+
+async function run(newSeed){
+  if(!state.start){toast('Choisis d\'abord un point de départ (liste, recherche ou clic sur la carte).');return;}
+  const S=settings();if(newSeed)state.seed++;
+  $('#go').disabled=true;$('#more').disabled=true;
+  try{
+    const G=await ensureGraph(S);
+    busy('Recherche des meilleures boucles…',0.62,`${G.m.toLocaleString('fr')} tronçons de chemins analysés`);await tick();
+    const seed=(Math.round(state.start[0]*1e4)*31+Math.round(state.start[1]*1e4))^(state.seed*2654435761)^(S.distKm*7919)^(S.dplus*104729);
+    const routes=await generateLoops(G,state.start,S,seed,f=>busy(null,0.62+0.33*f),tick);
+    state.routes=routes.map((r,k)=>{const sm=resample(G,r,20);const z=new Float32Array(sm.n);
+      for(let i=0;i<sm.n;i++){const e=demAt(sm.lat[i],sm.lon[i],13);z[i]=e===e?e:0;}
+      return {...r,sm,S,quick:analyze(G,r,S,sm,{z,side:null,src:'dem'}),A:null,k};});
+    busy(false);
+    $('#more').style.display='block';
+    renderCards();await select(0);
+  }catch(e){busy(false);console.error(e);toast(e.message||String(e),8000);}
+  finally{$('#go').disabled=false;$('#more').disabled=false;}
+}
+$('#go').onclick=()=>run(false);
+$('#more').onclick=()=>run(true);
+
+async function fineAnalysis(r){
+  const G=state.G,sm=r.sm,S=r.S;
+  const sideIdx=[];for(let i=0;i<sm.n;i+=2){const w=G.ways[sm.way[i]];if(!(w.paved&&w.cls!=='single'))sideIdx.push(i);}
+  const sidePts=[];for(const i of sideIdx)sidePts.push(...sideOffsets(sm,i,[25,50]));
+  const centers=[];for(let i=0;i<sm.n;i++)centers.push([sm.lat[i],sm.lon[i]]);
+  let z=null,sz=null,src='dem';
+  if(S.ign){
+    try{busy('Analyse fine du relief (IGN RGE ALTI)…',0,'Profil précis et détection des passages exposés');
+      const all=await ignElevations(centers.concat(sidePts),f=>busy(null,f));
+      z=all.slice(0,centers.length);sz=all.slice(centers.length);src='ign';
+    }catch(e){toast("Altimétrie IGN indisponible : analyse avec le relief approximatif.");}
+  }
+  busy('Analyse du relief…',0.9,'');
+  await ensureTiles(tilesFor(centers.concat(sidePts),14));
+  if(!z){z=new Float32Array(centers.length).fill(NaN);sz=new Float32Array(sidePts.length).fill(NaN);}
+  for(let i=0;i<centers.length;i++)if(!(z[i]===z[i])){const e=demAt(centers[i][0],centers[i][1],14);z[i]=e===e?e:demAt(centers[i][0],centers[i][1],13)||0;}
+  for(let i=0;i<sidePts.length;i++)if(!(sz[i]===sz[i]))sz[i]=demAt(sidePts[i][0],sidePts[i][1],14);
+  const side=new Array(sm.n);sideIdx.forEach((i,k)=>{side[i]=[sz[4*k],sz[4*k+1],sz[4*k+2],sz[4*k+3]];});
+  for(let i=0;i<sm.n;i++)if(!side[i]&&side[i-1]&&!(G.ways[sm.way[i]].paved&&G.ways[sm.way[i]].cls!=='single'))side[i]=side[i-1];
+  r.A=analyze(G,r,S,sm,{z,side,src});busy(false);
+}
+
+/* ---------- Rendu ---------- */
+const TECH_COL={route:'#8a8f98',vert:'#2e9e44',bleu:'#1f6fd1',rouge:'#d6352f',noir:'#1b1b1b'};
+function gradeCol(g){return g<-0.15?'#5b3fd6':g<-0.03?'#4f8fe0':g<=0.03?'#7ccf6a':g<=0.08?'#f2c14e':g<=0.12?'#f08a3c':g<=0.16?'#e0453a':'#8e1b3f';}
+const RIDE_COL={ride:'#3a9d5d',hard:'#f08a3c',push:'#d1342f',down:'#8aa7c9',flat:'#8aa7c9'};
+function fmtH(h){const m=Math.round(h*60);return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0');}
+const pct=x=>Math.round(x*100)+' %';
+
+function renderCards(){
+  const box=$('#results');box.innerHTML='';
+  state.routes.forEach((r,k)=>{const A=r.A||r.quick;const d=document.createElement('div');d.className='card'+(k===state.sel?' on':'');
+    const tot=A.len;const comp=A.comp;
+    const best=A.descents.reduce((b,x)=>!b||x.stars>b.stars?x:b,null);
+    const water=A.pois.filter(p=>p.type==='eau'||p.type==='fontaine').length,views=A.pois.filter(p=>p.type==='vue'||p.type==='sommet'||p.type==='col').length;
+    const climbTot=A.ridec+A.hardc+A.pushc;
+    d.innerHTML=`<div class="t">Boucle ${k+1}<span>${fmtH(A.hours)}</span></div>
+      <div class="stats"><div><b>${(A.len/1000).toFixed(1)} km</b>distance</div><div><b>${Math.round(A.dplus)} m</b>D+</div><div><b>${pct(A.single/tot)}</b>en single</div>
+      <div><b>${climbTot?pct(A.ridec/climbTot):'–'}</b>montée roulable</div><div><b>${best?'<span class="stars">'+'★'.repeat(best.stars)+'</span>'+'☆'.repeat(5-best.stars):'–'}</b>meilleure descente</div><div><b>${pct(A.paved/tot)}</b>bitume</div></div>
+      <div class="bar">${['vert','bleu','rouge','noir','route'].map(c=>`<span style="width:${comp[c]/tot*100}%;background:${TECH_COL[c]}"></span>`).join('')}</div>
+      <div class="chips">${water?`<span class="chip">💧 ${water}</span>`:'<span class="chip w">Pas d\'eau repérée</span>'}${views?`<span class="chip">👁️ ${views}</span>`:''}
+      ${A.zones.length?`<span class="chip w">⚠️ ${A.zones.length} zone${A.zones.length>1?'s':''} d'exposition</span>`:''}${A.pushRuns.length?`<span class="chip w">🚶 portage ${fmt1(A.pushRuns.reduce((s,p)=>s+p.len,0)/1000)} km</span>`:''}${A.mtbLen/tot>0.2?`<span class="chip">Balisé ${pct(A.mtbLen/tot)}</span>`:''}${r.A?'':'<span class="chip" style="opacity:.7">analyse rapide</span>'}</div>`;
+    d.onclick=()=>select(k);box.appendChild(d);});
+}
+async function select(k){
+  state.sel=k;const r=state.routes[k];
+  if(!r.A)await fineAnalysis(r);
+  renderCards();drawSelected(true);drawProfile();renderTab();
+  if(window.innerWidth<900){const m=document.getElementById('map');m.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>map.invalidateSize(),400);}
+}
+function drawSelected(fit){
+  routeLayer.clearLayers();poiLayer.clearLayers();ghostLayer.clearLayers();
+  const r=state.routes[state.sel];if(!r)return;const A=r.A||r.quick,sm=r.sm,G=state.G;
+  state.routes.forEach((o,j)=>{if(j===state.sel)return;L.polyline(o.sm.geo.map(g=>[g[0],g[1]]),{color:'#555',weight:3,opacity:0.35,dashArray:'4 6'}).addTo(ghostLayer).on('click',()=>select(j));});
+  L.polyline(sm.geo.map(g=>[g[0],g[1]]),{color:'#fff',weight:9,opacity:0.9}).addTo(routeLayer);
+  let i=0;
+  while(i<sm.n-1){
+    const key=sampleKey(r,A,i);let j=i;while(j<sm.n-1&&sampleKey(r,A,j+1)===key)j++;
+    const pts=[];for(let q=i;q<=Math.min(j+1,sm.n-1);q++)pts.push([sm.lat[q],sm.lon[q]]);
+    const [col,dash]=key.split('|');
+    L.polyline(pts,{color:col,weight:5,opacity:0.95,dashArray:dash==='1'?'7 6':null,lineCap:'butt'}).addTo(routeLayer);
+    i=j+1;
+  }
+  const icon=(ic)=>L.divIcon({className:'',html:`<div class="poi-ic">${ic}</div>`,iconSize:[20,20],iconAnchor:[10,10]});
+  for(const p of A.pois){const info=POI_INFO[p.type];
+    L.marker([p.lat,p.lon],{icon:icon(info.ic)}).bindTooltip(`${info.lab}${p.name?' — '+escapeHtml(p.name):''}<br>km ${p.km.toFixed(1)}${p.ele?' · '+Math.round(p.ele)+' m':''}`).addTo(poiLayer);}
+  for(const zn of A.zones){const pts=[];for(let q=zn.i0;q<=zn.i1;q++)pts.push([sm.lat[q],sm.lon[q]]);
+    L.polyline(pts,{color:zn.sev>=2?'#b0001e':'#e2711d',weight:12,opacity:0.35}).addTo(poiLayer);
+    L.marker(pts[0],{icon:icon('⚠️')}).bindTooltip(`<b>${zoneLabel(zn)}</b> · km ${(sm.d[zn.i0]/1000).toFixed(1)}, ~${Math.round(zn.len)} m<br>${zoneWhy(zn).map(escapeHtml).join('<br>')}`).addTo(poiLayer);}
+  if(fit)map.fitBounds(L.latLngBounds(sm.geo.map(g=>[g[0],g[1]])),{padding:[30,30]});
+}
+function sampleKey(r,A,i){
+  const G=state.G,w=G.ways[r.sm.way[i]];
+  if(state.colorMode==='tech')return TECH_COL[A.cls[i]]+'|'+((w.cls==='single'&&w.src!=='mtb')?1:0);
+  if(state.colorMode==='pente'){const g=A.grade[i];return gradeCol(g)+'|0';}
+  return RIDE_COL[A.ride[i]]+'|0';
+}
+
+/* Profil */
+const cv=$('#profile');
+function renderProfile(c,W,H,r,A,o){
+  o=o||{};const sm=r.sm,k=o.k||1,mode=o.mode||'tech';
+  const padL=46*k,padR=10*k,padT=(o.pdf?34:18)*k,padB=22*k;const pw=W-padL-padR,ph=H-padT-padB;
+  const zmin=Math.floor((A.zmin-20)/50)*50,zmax=Math.ceil((A.zmax+20)/50)*50;
+  const X=d=>padL+d/A.len*pw,Y=z=>padT+(1-(z-zmin)/(zmax-zmin))*ph;
+  c.font=`${11*k}px system-ui,sans-serif`;c.fillStyle='#5f6a64';c.strokeStyle='#e4e0d5';c.lineWidth=1*k;
+  const zstep=(zmax-zmin)>1200?400:(zmax-zmin)>500?200:100;
+  for(let z=Math.ceil(zmin/zstep)*zstep;z<=zmax;z+=zstep){const y=Y(z);c.beginPath();c.moveTo(padL,y);c.lineTo(W-padR,y);c.stroke();c.fillText(z+' m',2*k,y+4*k);}
+  const kstep=A.len>40000?10:A.len>15000?5:2;
+  for(let km=0;km<=A.len/1000;km+=kstep){c.fillText(km+' km',X(km*1000)-10*k,H-5*k);}
+  for(const dsc of A.descents){c.fillStyle='rgba(79,143,224,.08)';c.fillRect(X(dsc.d0),padT,X(dsc.d1)-X(dsc.d0),ph);}
+  for(let i=0;i<sm.n-1;i++){const x0=X(sm.d[i]),x1=X(sm.d[i+1]);
+    c.fillStyle=mode==='tech'?TECH_COL[A.cls[i]]:mode==='ride'?RIDE_COL[A.ride[i]]:gradeCol(A.grade[i]);
+    c.globalAlpha=0.55;c.beginPath();c.moveTo(x0,Y(zmin));c.lineTo(x0,Y(A.zs[i]));c.lineTo(x1+0.5,Y(A.zs[i+1]));c.lineTo(x1+0.5,Y(zmin));c.fill();}
+  c.globalAlpha=1;c.strokeStyle='#1d2421';c.lineWidth=1.4*k;c.beginPath();
+  for(let i=0;i<sm.n;i++){const x=X(sm.d[i]),y=Y(A.zs[i]);i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+  // portage : surlignage rouge de la courbe
+  c.strokeStyle='#d1342f';c.lineWidth=4*k;c.lineCap='round';
+  for(const pr of A.pushRuns){c.beginPath();for(let i=pr.i0;i<=pr.i1;i++){const x=X(sm.d[i]),y=Y(A.zs[i]);i===pr.i0?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}
+  c.lineCap='butt';
+  for(const zn of A.zones){c.fillStyle=zn.sev>=2?'#b0001e':'#e2711d';c.fillRect(X(sm.d[zn.i0]),padT+ph-4*k,Math.max(3*k,X(sm.d[zn.i1])-X(sm.d[zn.i0])),4*k);}
+  if(o.pdf){c.font=`${15*k}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+    for(const zn of A.zones)c.fillText('⚠️',X(sm.d[zn.i0])-8*k,padT+ph-8*k);}
+  c.font=`${(o.pdf?15:13)*k}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+  const lastX={};
+  for(const p of A.pois){const x=X(p.km*1000);const row=(lastX.r0!=null&&x-lastX.r0<16*k)?1:0;lastX['r'+row]=x;
+    c.fillText(POI_INFO[p.type].ic,x-7*k,padT-(o.pdf?16:3)*k+row*14*k);}
+  c.font=`${10.5*k}px system-ui,sans-serif`;c.fillStyle='#2b5ea8';
+  A.descents.forEach((dsc,j)=>{c.fillText('D'+(j+1),X(dsc.d0)+3*k,padT+12*k);});
+  if(o.hi!=null){c.strokeStyle='#c4511f';c.lineWidth=1;c.beginPath();c.moveTo(X(sm.d[o.hi]),padT);c.lineTo(X(sm.d[o.hi]),padT+ph);c.stroke();}
+  return {padL,pw};
+}
+function drawProfile(hi){
+  const r=state.routes[state.sel];const dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  if(!r)return;const A=r.A||r.quick;
+  const g=renderProfile(c,W,H,r,A,{hi,mode:state.colorMode});cv._geom={padL:g.padL,pw:g.pw,len:A.len};
+}
+cv.onmousemove=e=>{const r=state.routes[state.sel];if(!r||!cv._geom)return;const A=r.A||r.quick,sm=r.sm;
+  const rect=cv.getBoundingClientRect();const d=clamp((e.clientX-rect.left-cv._geom.padL)/cv._geom.pw,0,1)*A.len;
+  const i=clamp(Math.round(d/(sm.d[1]-sm.d[0]||20)),0,sm.n-1);
+  const w=state.G.ways[sm.way[i]];
+  const typ=w.cls==='single'?'Single':w.cls==='track'?'Piste':w.paved?'Route':'Chemin';
+  const tl=w.src==='mtb'?`S${w.tech.toFixed(0)}`:w.cls==='single'?`~S${Math.round(w.tech)} (estimé)`:'';
+  const ph=$('#phover');ph.style.display='block';
+  ph.innerHTML=`km ${(sm.d[i]/1000).toFixed(2)} · ${Math.round(A.zs[i])} m · ${(A.grade[i]*100).toFixed(0)} % · ${typ}${tl?' '+tl:''}${w.name?' · '+escapeHtml(w.name):''}`;
+  if(!hoverMarker)hoverMarker=L.circleMarker([sm.lat[i],sm.lon[i]],{radius:7,color:'#c4511f',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map);
+  else hoverMarker.setLatLng([sm.lat[i],sm.lon[i]]).addTo(map);
+  drawProfile(i);};
+cv.onmouseleave=()=>{$('#phover').style.display='none';if(hoverMarker)hoverMarker.remove();drawProfile();};
+window.addEventListener('resize',()=>drawProfile());
+
+/* Onglets */
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));renderTab();});
+function zoomTo(r,i0,i1){const sm=r.sm;const pts=[];for(let q=i0;q<=i1;q++)pts.push([sm.lat[q],sm.lon[q]]);
+  if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[60,60],maxZoom:16});else map.setView(pts[0],16);drawProfile(i0);}
+function techLabel(sec){if(!sec.single||sec.single<0.05)return 'Peu de single';const s=`S${Math.round(sec.techAvg)}${sec.techMax>sec.techAvg+0.6?' (max S'+Math.round(sec.techMax)+')':''}`;
+  return sec.known>0.6?s:s+' estimé';}
+function renderTab(){
+  const body=$('#tabbody');const r=state.routes[state.sel];
+  if(!r){body.innerHTML='<div class="empty">Aucune boucle sélectionnée.</div>';return;}
+  const A=r.A||r.quick,S=r.S;const tot=A.len;
+  const srcNote=A.src==='ign'?'Relief : IGN RGE ALTI (précis).':'Relief : modèle de terrain ~30 m (approximatif) — exposition et pentes à prendre avec recul.';
+  let h='';const items=[];
+  if(state.tab==='resume'){
+    const climbTot=A.ridec+A.hardc+A.pushc;
+    h+=`<div class="note">${srcNote} Niveau demandé : <b>${S.L.label}</b> · objectif ${S.distKm} km / ${S.dplus} m D+.</div>`;
+    h+=`<div class="item"><div class="h">Distance et dénivelé<span>${(tot/1000).toFixed(1)} km · +${Math.round(A.dplus)} / −${Math.round(A.dminus)} m</span></div><div class="d">Altitude ${Math.round(A.zmin)} → ${Math.round(A.zmax)} m · durée estimée ${fmtH(A.hours)} (hors pauses)</div></div>`;
+    h+=`<div class="item"><div class="h">Montées<span>${climbTot?pct(A.ridec/climbTot):'–'} roulables</span></div><div class="d">${(A.hardc/1000).toFixed(1)} km difficiles · ${(A.pushc/1000).toFixed(1)} km de portage probable</div></div>`;
+    h+=`<div class="item"><div class="h">Type de voies<span>${pct(A.single/tot)} single</span></div><div class="d">${pct(A.paved/tot)} bitume · ${['vert','bleu','rouge','noir'].map(c=>`<span style="color:${TECH_COL[c]}">●</span> ${pct(A.comp[c]/tot)}`).join(' ')}${A.unknown/tot>0.05?` · ${pct(A.unknown/tot)} de singles sans niveau renseigné`:''}</div></div>`;
+    if(A.mtbNames.length)h+=`<div class="item"><div class="h">Parcours balisés empruntés<span>${pct(A.mtbLen/tot)}</span></div><div class="d">${A.mtbNames.slice(0,4).map(([n,l])=>escapeHtml(n)+' ('+(l/1000).toFixed(1)+' km)').join(' · ')}</div></div>`;
+    const water=A.pois.filter(p=>p.type==='eau'||p.type==='fontaine');
+    h+=`<div class="item"><div class="h">Eau<span>${water.length} point${water.length>1?'s':''}</span></div><div class="d">${water.length?water.map(p=>'km '+p.km.toFixed(1)).join(', '):'Aucun point d\'eau potable repéré : prévois ton autonomie.'}</div></div>`;
+    if(A.npLen>0)h+=`<div class="item"><div class="h" style="color:var(--warn)">Parc national<span>${(A.npLen/1000).toFixed(1)} km</span></div><div class="d">Le tracé traverse un cœur de parc national : VTT en principe interdit.</div></div>`;
+    if(A.resLen>0)h+=`<div class="item"><div class="h" style="color:var(--warn)">Réserve naturelle / zone protégée<span>${(A.resLen/1000).toFixed(1)} km</span></div><div class="d">Réglementation spécifique possible (VTT limité à certains itinéraires) : à vérifier.</div></div>`;
+    h+=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="gpx" style="margin-top:12px;flex:1">Télécharger le GPX</button><button class="btn" id="pdf" style="margin-top:12px;flex:1;background:#1d2421">Fiche PDF (téléphone)</button></div>`;
+  }else if(state.tab==='montees'){
+    if(!A.climbs.length)h='<div class="empty">Pas de montée significative (> 50 m).</div>';
+    A.climbs.forEach((c,k)=>{items.push(c);h+=`<div class="item" data-k="${k}"><div class="h">Montée ${k+1}${c.name?' — '+escapeHtml(c.name):''}<span>km ${(c.d0/1000).toFixed(1)} · +${Math.round(c.dz)} m</span></div>
+      <div class="d">${(c.len/1000).toFixed(1)} km à ${(c.avg*100).toFixed(1)} % (max ${(c.maxG*100).toFixed(0)} %) · <b style="color:#3a9d5d">${pct(c.ride)} roulable</b>${c.hard>0.05?` · ${pct(c.hard)} difficile`:''}${c.push>0.03?` · <b style="color:#d1342f">${pct(c.push)} portage probable</b>`:''} · ${pct(c.paved)} bitume</div></div>`;});
+  }else if(state.tab==='descentes'){
+    if(!A.descents.length)h='<div class="empty">Pas de descente significative (> 50 m).</div>';
+    A.descents.forEach((c,k)=>{items.push(c);h+=`<div class="item" data-k="${k}"><div class="h">D${k+1}${c.name?' — '+escapeHtml(c.name):''}<span><span class="stars">${'★'.repeat(c.stars)}</span>${'☆'.repeat(5-c.stars)}</span></div>
+      <div class="d">km ${(c.d0/1000).toFixed(1)} · −${Math.round(c.dz)} m sur ${(c.len/1000).toFixed(1)} km (${(c.avg*100).toFixed(0)} % moy., max ${(c.maxG*100).toFixed(0)} %) · ${pct(c.single)} single · technique ${techLabel(c)}${c.paved>0.1?` · ${pct(c.paved)} bitume`:''}${c.expo?` · <b style="color:var(--warn)">⚠️ ${c.expo} passage(s) exposé(s)</b>`:''}${c.mtb?' · balisé « '+escapeHtml(c.mtb)+' »':''}</div></div>`;});
+  }else if(state.tab==='vigilance'){
+    h+=`<div class="note"><b>Comment c'est calculé.</b> Le relief est mesuré à 25 m et 50 m de chaque côté du chemin, tous les 40 m.
+      <b>Pente latérale forte</b> : terrain au moins 40 m plus bas à 50 m (pente ≥ ~39°). <b>Exposition marquée</b> : au moins 60 m plus bas (≥ ~50°), ou falaise cartographiée à moins de 35 m.
+      Les routes ne sont pas analysées. ${A.src==='ign'?'Relief IGN précis (1 à 5 m).':'<b>Relief approximatif (~30 m)</b> : des passages peuvent manquer.'}
+      Ne détecte pas : petites marches au-dessus d'un ravin, dévers glissant, largeur du sentier, rochers mouillés. À considérer comme des zones à reconnaître, pas comme un niveau de danger.</div>`;
+    if(!A.zones.length)h+='<div class="empty" style="padding:14px">Aucune zone d\'exposition détectée.</div>';
+    A.zones.forEach((zn,k)=>{items.push(zn);h+=`<div class="item" data-k="${k}"><div class="h">⚠️ ${zoneLabel(zn)}<span>km ${(r.sm.d[zn.i0]/1000).toFixed(1)} · ~${Math.round(zn.len)} m</span></div><div class="d">${zoneWhy(zn).map(escapeHtml).join(' · ')} · ${escapeHtml(state.G.ways[r.sm.way[zn.i0]].name||'chemin sans nom')}</div></div>`;});
+    A.pushRuns.forEach(pr=>{items.push(pr);h+=`<div class="item" data-k="${items.length-1}"><div class="h">🚶 Portage probable<span>km ${(r.sm.d[pr.i0]/1000).toFixed(1)} · ~${Math.round(pr.len)} m</span></div><div class="d">Pente trop forte pour le revêtement et ton niveau (${pr.dz>0?'+':''}${Math.round(pr.dz)} m)</div></div>`;});
+    if(A.unknown/tot>0.1)h+=`<div class="item"><div class="h">Niveau incertain<span>${pct(A.unknown/tot)}</span></div><div class="d">Une partie des singles n'a pas de niveau VTT renseigné dans OpenStreetMap (tracés en pointillés).</div></div>`;
+  }else{
+    if(!A.pois.length)h='<div class="empty">Aucun point d\'intérêt repéré le long du tracé.</div>';
+    A.pois.forEach((p,k)=>{items.push(p);const info=POI_INFO[p.type];h+=`<div class="item" data-k="${k}"><div class="h">${info.ic} ${info.lab}${p.name?' — '+escapeHtml(p.name):''}<span>km ${p.km.toFixed(1)}</span></div><div class="d">${p.off>30?'à ~'+Math.round(p.off)+' m du tracé':'sur le tracé'}${p.ele?' · '+Math.round(p.ele)+' m':''}</div></div>`;});
+  }
+  body.innerHTML=h;
+  body.querySelectorAll('.item[data-k]').forEach(el=>el.onclick=()=>{const it=items[+el.dataset.k];
+    if(it.i0!=null)zoomTo(r,it.i0,it.i1);else{map.setView([it.lat,it.lon],16);drawProfile(it.i);}});
+  const g=$('#gpx');if(g)g.onclick=()=>{
+    const name=`VTT ${S.L.label} ${(A.len/1000).toFixed(0)} km +${Math.round(A.dplus)} m`;
+    const blob=new Blob([buildGPX(name,r.sm,A)],{type:'application/gpx+xml'});const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=name.replace(/[^\w+-]+/g,'_')+'.gpx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+  const pb=$('#pdf');if(pb)pb.onclick=()=>buildPDF();
+}
+
+/* ============================ FICHE PDF ============================ */
+const fmt1=x=>x.toFixed(1).replace('.',',');
+const CARD=['nord','nord-est','est','sud-est','sud','sud-ouest','ouest','nord-ouest'];
+const cardinal=b=>CARD[Math.round((((b%360)+360)%360)/45)%8];
+const TYPE_COL={route:'#8a8f98',piste:'#b07d3a',single:'#2f6b4f'};
+const TYPE_LAB={route:'Route / bitume',piste:'Piste / chemin large',single:'Single / sentier'};
+const LEVEL_LAB={vert:'VERT',bleu:'BLEU',rouge:'ROUGE',noir:'NOIR'};
+const EMOJI_FONT='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+
+function wayDesc(w){
+  const t=typeOf(w);let s;
+  if(w.mtb&&w.mtb.length)s=`le parcours VTT balisé « ${w.mtb[0]} »`;
+  else s=t==='route'?'la route':t==='piste'?'la piste':'le single';
+  if(w.name&&!(w.mtb&&w.mtb[0]===w.name))s+=` « ${w.name} »`;
+  if(t==='single')s+=w.src==='mtb'?` (S${Math.round(w.tech)})`:` (~S${Math.round(w.tech)})`;
+  return s;
+}
+function turnText(st){
+  if(st.kind==='start')return `Départ vers le ${cardinal(st.brgOut)}`;
+  if(st.kind==='end')return 'Arrivée au point de départ';
+  const a=st.ang,A=Math.abs(a),side=a>0?'droite':'gauche';
+  if(A<35&&st.amb)return `Garder la ${st.amb}`;
+  if(A<20)return 'Tout droit';if(A<45)return `Légèrement à ${side}`;if(A<125)return `À ${side}`;return `Virage serré à ${side}`;
+}
+function sectionText(sec){
+  if(!sec)return '';
+  const parts=[`${sec.len>=1000?fmt1(sec.len/1000)+' km':Math.round(sec.len/10)*10+' m'}`];
+  const up=Math.round(sec.up),dn=Math.round(sec.down);
+  if(up>=30&&up>=dn*2)parts.push(`montée +${up} m`);
+  else if(dn>=30&&dn>=up*2)parts.push(`descente -${dn} m`);
+  else if(up+dn<30)parts.push('plat');
+  else parts.push(`+${up} / -${dn} m`);
+  const tot=sec.ty.route+sec.ty.piste+sec.ty.single||1;
+  const mix=Object.entries(sec.ty).filter(([,v])=>v/tot>=0.15).sort((a,b)=>b[1]-a[1]);
+  if(mix.length>1)parts.push(mix.map(([t,v])=>`${t} ${Math.round(v/tot*100)} %`).join(', '));
+  if(sec.push>=40)parts.push(`portage probable ~${Math.round(sec.push/10)*10} m`);
+  return parts.join(' · ');
+}
+function pdfSafe(s){
+  return String(s).normalize('NFC').replace(/[–—]/g,'-').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/…/g,'...')
+    .replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/−/g,'-').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/[  ]/g,' ').replace(/[^\x00-\xFF]/g,'');
+}
+function loadImg(src,ms=15000){
+  return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';const t=setTimeout(()=>{im.src='';res(null);},ms);
+    im.onload=()=>{clearTimeout(t);res(im);};im.onerror=()=>{clearTimeout(t);res(null);};im.src=src;});
+}
+async function loadJsPDF(){
+  if(window.jspdf&&window.jspdf.jsPDF)return window.jspdf.jsPDF;
+  for(const src of ['https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js']){
+    try{await new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+      if(window.jspdf&&window.jspdf.jsPDF)return window.jspdf.jsPDF;}catch(e){}
+  }
+  throw new Error("Impossible de charger le module PDF. Vérifie ta connexion internet.");
+}
+const _icons=new Map();
+function iconURL(ch){
+  if(_icons.has(ch))return _icons.get(ch);
+  const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d');
+  x.font=`72px ${EMOJI_FONT}`;x.textAlign='center';x.textBaseline='middle';x.fillText(ch,48,54);
+  const u=c.toDataURL('image/png');_icons.set(ch,u);return u;
+}
+function arrowURL(st){
+  const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');const m=S/2,R=S*0.42;
+  x.fillStyle='#eef2ee';x.beginPath();x.arc(m,m,S/2-2,0,7);x.fill();
+  const dir=a=>[Math.sin(a*D2R),-Math.cos(a*D2R)];
+  x.lineCap='round';x.strokeStyle='#b9c0bb';x.lineWidth=S*0.07;
+  for(const b of st.branches||[]){const [dx,dy]=dir(b);x.beginPath();x.moveTo(m,m);x.lineTo(m+dx*R,m+dy*R);x.stroke();}
+  x.strokeStyle='#8a948e';x.beginPath();x.moveTo(m,m+R);x.lineTo(m,m);x.stroke();
+  const [dx,dy]=dir(st.ang);const ex=m+dx*R*0.92,ey=m+dy*R*0.92;
+  x.strokeStyle='#2f6b4f';x.lineWidth=S*0.1;x.beginPath();x.moveTo(m,m+R*0.55);x.lineTo(m,m);x.lineTo(ex,ey);x.stroke();
+  const ah=S*0.16,a=st.ang*D2R;x.fillStyle='#2f6b4f';x.beginPath();
+  x.moveTo(ex+Math.sin(a)*ah*0.6,ey-Math.cos(a)*ah*0.6);
+  x.lineTo(ex+Math.cos(a)*ah*0.7-Math.sin(a)*ah*0.4,ey+Math.sin(a)*ah*0.7+Math.cos(a)*ah*0.4);
+  x.lineTo(ex-Math.cos(a)*ah*0.7-Math.sin(a)*ah*0.4,ey-Math.sin(a)*ah*0.7+Math.cos(a)*ah*0.4);x.fill();
+  return c.toDataURL('image/png');
+}
+function pixToLatLon(px,py,z){const n=256*2**z;const lon=px/n*360-180;const lat=Math.atan(Math.sinh(Math.PI*(1-2*py/n)))*180/Math.PI;return [lat,lon];}
+const TILE_SRC=[
+  {attr:'Fond © IGN Plan',url:(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/png`},
+  {attr:'Fond © OpenTopoMap, OpenStreetMap',url:(z,x,y)=>`https://${'abc'[(x+y)%3]}.tile.opentopomap.org/${z}/${x}/${y}.png`},
+  {attr:'Fond © OpenStreetMap',url:(z,x,y)=>`https://tile.openstreetmap.org/${z}/${x}/${y}.png`}
+];
+async function renderMap(r,A,W,maxH,onProg){
+  const G=state.G,sm=r.sm,st0=sm.d[1]-sm.d[0]||20;
+  let la0=90,la1=-90,lo0=180,lo1=-180;
+  for(const g of sm.geo){la0=Math.min(la0,g[0]);la1=Math.max(la1,g[0]);lo0=Math.min(lo0,g[1]);lo1=Math.max(lo1,g[1]);}
+  const pla=(la1-la0)*0.07+0.0012,plo=(lo1-lo0)*0.07+0.0016;la0-=pla;la1+=pla;lo0-=plo;lo1+=plo;
+  // hauteur adaptée à la forme du parcours (pas de vide inutile)
+  {const [ax,ay]=lonLatToPix(la1,lo0,14),[bx,by]=lonLatToPix(la0,lo1,14);var H=Math.round(clamp(W*(by-ay)/(bx-ax),W*0.62,maxH));}
+  // zoom le plus fort possible sans trop agrandir les tuiles (netteté)
+  let z,xa,ya,xb,yb,f;
+  for(z=17;z>=8;z--){[xa,ya]=lonLatToPix(la1,lo0,z);[xb,yb]=lonLatToPix(la0,lo1,z);f=Math.min(W/(xb-xa),H/(yb-ya));if(f>=0.7)break;}
+  const cx=(xa+xb)/2,cy=(ya+yb)/2;
+  const P=(lat,lon)=>{const [px,py]=lonLatToPix(lat,lon,z);return [(px-cx)*f+W/2,(py-cy)*f+H/2];};
+  const cvs=document.createElement('canvas');cvs.width=W;cvs.height=H;const c=cvs.getContext('2d');
+  c.fillStyle='#f2efe6';c.fillRect(0,0,W,H);
+  const tx0=Math.floor((cx-W/2/f)/256),tx1=Math.floor((cx+W/2/f)/256),ty0=Math.floor((cy-H/2/f)/256),ty1=Math.floor((cy+H/2/f)/256);
+  const tiles=[];for(let x=tx0;x<=tx1;x++)for(let y=ty0;y<=ty1;y++)tiles.push([x,y]);
+  let attr=null;
+  for(let si=0;si<TILE_SRC.length&&!attr;si++){const src=TILE_SRC[si];const imgs=new Array(tiles.length);let ok=0,done=0;
+    await pool(tiles.map((t,i)=>i),6,async i=>{const [x,y]=tiles[i];imgs[i]=await loadImg(src.url(z,x,y));if(imgs[i])ok++;done++;
+      if(onProg)onProg((si+done/tiles.length)/TILE_SRC.length);});
+    if(ok>=tiles.length*0.7){
+      const test=document.createElement('canvas');test.width=test.height=2;
+      try{test.getContext('2d').drawImage(imgs.find(Boolean),0,0);test.toDataURL();}catch(e){continue;}
+      c.imageSmoothingQuality='high';
+      tiles.forEach(([x,y],i)=>{if(imgs[i])c.drawImage(imgs[i],(x*256-cx)*f+W/2,(y*256-cy)*f+H/2,256*f+0.6,256*f+0.6);});
+      attr=src.attr;}
+  }
+  if(!attr){ // relief ombré calculé depuis le modèle de terrain
+    await ensureTiles(tilesForBBox([la0-0.02,lo0-0.02,la1+0.02,lo1+0.02],13));
+    const img=c.createImageData(W,H),D=img.data,st=2,e0=0.00035;
+    for(let py=0;py<H;py+=st)for(let px=0;px<W;px+=st){
+      const [lat,lon]=pixToLatLon((px-W/2)/f+cx,(py-H/2)/f+cy,z);
+      const e=demAt(lat,lon,13),ex=demAt(lat,lon+e0,13),ey=demAt(lat+e0,lon,13);
+      let v=0.85;if(e===e&&ex===ex&&ey===ey){const gx=(ex-e)/(e0*111320*Math.cos(lat*D2R)),gy=(ey-e)/(e0*110540);
+        const nl=Math.hypot(gx,gy,1);v=clamp((gx*0.5-gy*0.5+0.707)/nl,0,1);}
+      const R=Math.round(120+125*v),Gc=Math.round(122+118*v),B=Math.round(105+108*v);
+      for(let dy=0;dy<st;dy++)for(let dx=0;dx<st;dx++){if(px+dx<W&&py+dy<H){const q=((py+dy)*W+(px+dx))*4;D[q]=R;D[q+1]=Gc;D[q+2]=B;D[q+3]=255;}}}
+    c.putImageData(img,0,0);attr='Relief © Mapzen Terrarium (fond de carte indisponible)';
+  }
+  c.fillStyle='rgba(255,255,255,0.10)';c.fillRect(0,0,W,H);
+  const path=(i0,i1)=>{c.beginPath();for(let q=i0;q<=i1;q++){const [x,y]=P(sm.lat[q],sm.lon[q]);q===i0?c.moveTo(x,y):c.lineTo(x,y);}};
+  c.lineJoin='round';c.lineCap='round';
+  for(const zn of A.zones){c.strokeStyle=zn.sev>=2?'rgba(176,0,30,.45)':'rgba(226,113,29,.45)';c.lineWidth=30;path(zn.i0,zn.i1);c.stroke();}
+  // liseré sombre + halo blanc + tracé coloré
+  c.strokeStyle='rgba(20,24,22,.55)';c.lineWidth=17;path(0,sm.n-1);c.stroke();
+  c.strokeStyle='#ffffff';c.lineWidth=13;path(0,sm.n-1);c.stroke();
+  const est=i=>{const w=G.ways[sm.way[i]];return w.cls==='single'&&w.src!=='mtb';};
+  let i=0;
+  while(i<sm.n-1){const key=A.cls[i]+(est(i)?'*':'');let j=i;while(j<sm.n-1&&A.cls[j+1]+(est(j+1)?'*':'')===key)j++;
+    c.strokeStyle=TECH_COL[A.cls[i]];c.lineWidth=8;const dash=key.endsWith('*');c.lineCap=dash?'butt':'round';c.setLineDash(dash?[18,7]:[]);
+    path(i,Math.min(j+1,sm.n-1));c.stroke();i=j+1;}
+  c.setLineDash([]);c.lineCap='round';
+  c.strokeStyle='#d1342f';c.lineWidth=5;c.setLineDash([2,10]);for(const pr of A.pushRuns){path(pr.i0,pr.i1);c.stroke();}c.setLineDash([]);
+  // sens de parcours
+  const every=A.len>30000?4000:A.len>15000?3000:2000;
+  for(let d=every/2;d<A.len-400;d+=every){const k=Math.round(d/st0);if(k<3||k>sm.n-4)continue;
+    const a=P(sm.lat[k-3],sm.lon[k-3]),b=P(sm.lat[k+3],sm.lon[k+3]);const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),[x,y]=P(sm.lat[k],sm.lon[k]);
+    c.save();c.translate(x,y);c.rotate(ang);c.fillStyle='#1d2421';c.strokeStyle='#fff';c.lineWidth=3;c.lineJoin='round';
+    c.beginPath();c.moveTo(14,0);c.lineTo(-9,-11);c.lineTo(-3,0);c.lineTo(-9,11);c.closePath();c.stroke();c.fill();c.restore();}
+  // bornes kilométriques
+  c.textAlign='center';c.textBaseline='middle';c.font='bold 15px system-ui,sans-serif';
+  const kmStep=A.len>40000?10:5;
+  for(let km=kmStep;km<A.len/1000-1;km+=kmStep){const k=Math.round(km*1000/st0);const [x,y]=P(sm.lat[k],sm.lon[k]);
+    c.fillStyle='#1d2421';c.beginPath();c.roundRect?c.roundRect(x-23,y-13,46,26,13):c.rect(x-23,y-13,46,26);c.fill();
+    c.strokeStyle='#fff';c.lineWidth=2.5;c.stroke();c.fillStyle='#fff';c.fillText(km+' km',x,y+1);}
+  // points d'intérêt
+  for(const p of A.pois){const [x,y]=P(p.lat,p.lon);c.fillStyle='#fff';c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=2;
+    c.beginPath();c.arc(x,y,18,0,7);c.fill();c.stroke();c.font=`22px ${EMOJI_FONT}`;c.fillStyle='#000';c.fillText(POI_INFO[p.type].ic,x,y+2);}
+  for(const zn of A.zones){const [x,y]=P(sm.lat[zn.i0],sm.lon[zn.i0]);c.font=`28px ${EMOJI_FONT}`;c.fillText('⚠️',x,y);}
+  // départ / arrivée
+  {const [x,y]=P(sm.lat[0],sm.lon[0]);c.fillStyle='#2f6b4f';c.strokeStyle='#fff';c.lineWidth=4;c.beginPath();c.arc(x,y,22,0,7);c.fill();c.stroke();
+    c.fillStyle='#fff';c.font='bold 21px system-ui,sans-serif';c.fillText('D',x,y+1);}
+  // échelle, nord, attribution
+  const mpp=156543.034*Math.cos((la0+la1)/2*D2R)/2**z/f;
+  const nice=[100,200,250,500,1000,2000,5000].find(v=>v/mpp>=130)||5000;const bl=nice/mpp;
+  c.fillStyle='rgba(255,255,255,.92)';c.fillRect(14,H-52,bl+30,38);c.fillStyle='#1d2421';c.fillRect(29,H-25,bl,6);
+  c.font='bold 15px system-ui,sans-serif';c.textAlign='left';c.fillText(nice>=1000?nice/1000+' km':nice+' m',29,H-38);
+  c.textAlign='center';c.fillStyle='rgba(255,255,255,.92)';c.beginPath();c.arc(W-38,40,25,0,7);c.fill();
+  c.fillStyle='#1d2421';c.beginPath();c.moveTo(W-38,21);c.lineTo(W-47,46);c.lineTo(W-38,40);c.lineTo(W-29,46);c.closePath();c.fill();
+  c.font='bold 13px system-ui,sans-serif';c.fillText('N',W-38,57);
+  c.font='13px system-ui,sans-serif';const at=attr+' · tracé © OpenStreetMap';const tw=c.measureText(at).width;
+  c.fillStyle='rgba(255,255,255,.88)';c.fillRect(W-tw-22,H-24,tw+16,20);c.fillStyle='#3d4541';c.textAlign='right';c.fillText(at,W-14,H-13);
+  return cvs;
+}
+
+async function buildPDF(){
+  const r=state.routes[state.sel];if(!r)return;
+  if(!r.A)await fineAnalysis(r);
+  const A=r.A,S=r.S,G=state.G,sm=r.sm;
+  busy('Préparation de la fiche PDF…',0.05,'Chargement du module PDF');
+  try{
+    const jsPDF=await loadJsPDF();
+    busy(null,0.15,'Dessin de la carte');
+    const MW=1100;
+    const mapCv=await renderMap(r,A,MW,Math.round(MW*112/110),f=>busy(null,0.15+0.55*f,'Dessin de la carte'));const MH=mapCv.height;
+    busy(null,0.75,'Profil et itinéraire');await tick();
+    const pc=document.createElement('canvas');pc.width=1600;pc.height=950;const pctx=pc.getContext('2d');
+    pctx.fillStyle='#fff';pctx.fillRect(0,0,1600,950);renderProfile(pctx,1600,950,r,A,{k:2.2,pdf:true,mode:'tech'});
+
+    const PW=110,PH=220,M=7,CW=PW-2*M;
+    const doc=new jsPDF({unit:'mm',format:[PW,PH],orientation:'portrait',compress:true});
+    const rgb=h=>{h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];};
+    const fill=h=>doc.setFillColor(...rgb(h)),ink=h=>doc.setTextColor(...rgb(h)),draw=h=>doc.setDrawColor(...rgb(h));
+    const T=pdfSafe;const LH=pt=>pt*0.3528*1.32;
+    const dateStr=new Date().toLocaleDateString('fr-FR');
+    let y=0,page=1;
+    const footer=()=>{doc.setFont('helvetica','normal');doc.setFontSize(6.3);ink('#7a817c');
+      doc.text(T(`Traceur VTT · ${dateStr} · page ${page}`),M,PH-4,{baseline:'bottom'});
+      doc.text('Données © OpenStreetMap, IGN',PW-M,PH-4,{baseline:'bottom',align:'right'});};
+    const newPage=()=>{footer();doc.addPage([PW,PH],'portrait');page++;y=M;};
+    const ensure=h=>{if(y+h>PH-10)newPage();};
+    const txt=(t,x,yy,o)=>doc.text(t,x,yy,{baseline:'top',...(o||{})});
+    const h2=t=>{ensure(16);doc.setFont('helvetica','bold');doc.setFontSize(11.5);ink('#1d2421');txt(T(t),M,y);
+      fill('#2f6b4f');doc.rect(M,y+5.6,10,0.8,'F');y+=9;};
+    const para=(t,size,color,style,x,w)=>{x=x??M;w=w??CW;doc.setFont('helvetica',style||'normal');doc.setFontSize(size||7.5);ink(color||'#1d2421');
+      const lines=doc.splitTextToSize(T(t),w);ensure(lines.length*LH(size||7.5));txt(lines,x,y,{lineHeightFactor:1.32});y+=lines.length*LH(size||7.5);};
+
+    /* --- Page 1 : en-tête, chiffres, carte --- */
+    fill('#2f6b4f');doc.rect(0,0,PW,28,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(13.5);ink('#ffffff');
+    const tl=doc.splitTextToSize(T(`Boucle VTT · ${state.startName||'départ personnalisé'}`),CW-25).slice(0,2);
+    txt(tl,M,6,{lineHeightFactor:1.15});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    txt(T(`${fmt1(A.len/1000)} km · +${Math.round(A.dplus)} m · ${fmtH(A.hours)} · niveau demandé : ${S.L.label}`),M,21.5);
+    fill(TECH_COL[A.level]);draw('#ffffff');doc.setLineWidth(0.5);doc.roundedRect(PW-M-21,6,21,13,1.5,1.5,'FD');
+    doc.setFont('helvetica','normal');doc.setFontSize(5.2);ink('#ffffff');txt('DIFFICULTÉ',PW-M-10.5,8,{align:'center'});
+    doc.setFont('helvetica','bold');doc.setFontSize(10);txt(LEVEL_LAB[A.level],PW-M-10.5,11.6,{align:'center'});
+    y=32;
+    const climbTot=A.ridec+A.hardc+A.pushc;
+    const water=A.pois.filter(p=>p.type==='eau'||p.type==='fontaine').length;
+    const pushKm=A.pushRuns.reduce((s,p)=>s+p.len,0)/1000;
+    const stats=[[`${fmt1(A.len/1000)} km`,'distance'],[`+${Math.round(A.dplus)} m`,'dénivelé positif'],[fmtH(A.hours),'durée estimée (hors pauses)'],
+      [`${Math.round(A.zmax)} m`,`altitude max (min ${Math.round(A.zmin)} m)`],[`${Math.round(A.single/A.len*100)} %`,'en single'],[climbTot?`${Math.round(A.ridec/climbTot*100)} %`:'-','des montées roulables'],
+      [String(water),"point(s) d'eau"],[pushKm>0?`${fmt1(pushKm)} km`:'aucun','portage probable'],[String(A.zones.length),"zone(s) d'exposition"]];
+    const cw=CW/3;
+    stats.forEach(([v,l],k)=>{const cx=M+(k%3)*cw,cy=y+Math.floor(k/3)*10.5;
+      doc.setFont('helvetica','bold');doc.setFontSize(11);ink('#1d2421');txt(T(v),cx,cy);
+      doc.setFont('helvetica','normal');doc.setFontSize(5.8);ink('#5f6a64');txt(doc.splitTextToSize(T(l),cw-2)[0],cx,cy+5.2);});
+    y+=32.5;
+    const mh=PW*MH/MW;
+    doc.addImage(mapCv.toDataURL('image/jpeg',0.9),'JPEG',0,y,PW,mh);draw('#c9c4b6');doc.setLineWidth(0.2);doc.line(0,y,PW,y);doc.line(0,y+mh,PW,y+mh);
+    y+=mh+1.6;
+    doc.setFontSize(5.8);let lx=M;
+    for(const [c,l] of [['vert','S0-S1'],['bleu','S2'],['rouge','S3'],['noir','S4+'],['route','route']]){fill(TECH_COL[c]);doc.rect(lx,y+0.5,4,1.4,'F');
+      doc.setFont('helvetica','normal');ink('#3d4541');txt(l,lx+5,y);lx+=5+doc.getTextWidth(l)+3.5;}
+    txt(T('D = départ'),PW-M,y,{align:'right'});
+    y+=3;txt(T("Tirets = niveau estimé · pointillé rouge = portage · halo orange = exposition · flèches = sens"),M,y);
+    y+=4;
+    const barBlock=(title,parts)=>{ensure(13);doc.setFont('helvetica','bold');doc.setFontSize(7);ink('#1d2421');txt(T(title),M,y);y+=3.4;
+      const tot=parts.reduce((s,p)=>s+p[1],0)||1;let x=M;
+      for(const [col,v] of parts){const w=CW*v/tot;if(w<=0.01)continue;fill(col);doc.rect(x,y,w,3,'F');x+=w;}
+      y+=3.8;doc.setFont('helvetica','normal');doc.setFontSize(5.9);let bx=M;
+      for(const [col,v,lab] of parts){if(v/tot<0.005)continue;const s=T(`${lab} ${Math.round(v/tot*100)} %`);
+        if(bx+doc.getTextWidth(s)+4>PW-M){bx=M;y+=2.8;}fill(col);doc.rect(bx,y+0.35,1.8,1.8,'F');ink('#3d4541');txt(s,bx+2.6,y);bx+=doc.getTextWidth(s)+5.5;}
+      y+=4.2;};
+    barBlock('Type de chemin',[['#8a8f98',A.types.route,TYPE_LAB.route],[TYPE_COL.piste,A.types.piste,TYPE_LAB.piste],[TYPE_COL.single,A.types.single,TYPE_LAB.single]]);
+    barBlock('Difficulté technique',[[TECH_COL.vert,A.comp.vert,'vert'],[TECH_COL.bleu,A.comp.bleu,'bleu'],[TECH_COL.rouge,A.comp.rouge,'rouge'],[TECH_COL.noir,A.comp.noir,'noir'],[TECH_COL.route,A.comp.route,'route']]);
+
+    /* --- Profil + points clés --- */
+    newPage();
+    h2('Profil altimétrique');
+    const ph=CW*950/1600;doc.addImage(pc.toDataURL('image/jpeg',0.9),'JPEG',M,y,CW,ph);y+=ph+1.5;
+    doc.setFont('helvetica','normal');doc.setFontSize(5.8);ink('#3d4541');
+    txt(T('Couleur = difficulté · trait rouge = portage · barre orange/rouge = exposition · D1, D2... = descentes'),M,y);y+=6;
+    h2('Points clés');
+    const ev=[];
+    for(const p of A.pois){const info=POI_INFO[p.type];ev.push({km:p.km,ic:info.ic,t:info.lab+(p.name?' - '+p.name:''),
+      d:[p.ele?Math.round(p.ele)+' m':'',p.off>30?`à ~${Math.round(p.off)} m du tracé`:''].filter(Boolean).join(' · ')});}
+    for(const zn of A.zones)ev.push({km:sm.d[zn.i0]/1000,ic:'⚠️',t:`${zoneLabel(zn)} sur ~${Math.round(zn.len)} m`,d:zoneWhy(zn).join(' ; '),warn:true});
+    for(const pr of A.pushRuns)ev.push({km:sm.d[pr.i0]/1000,ic:'🚶',t:`Portage probable sur ~${Math.round(pr.len/10)*10} m`,d:`${pr.dz>0?'+':''}${Math.round(pr.dz)} m, pente trop forte pour rouler à ton niveau`,warn:true});
+    A.descents.forEach((dsc,k)=>ev.push({km:dsc.d0/1000,ic:'📉',t:`Descente D${k+1} : -${Math.round(dsc.dz)} m sur ${fmt1(dsc.len/1000)} km`,
+      d:`intérêt ${dsc.stars}/5 · ${Math.round(dsc.single*100)} % single · technique ${techLabel(dsc)}${dsc.name?' · '+dsc.name:''}`}));
+    A.climbs.forEach((cl,k)=>ev.push({km:cl.d0/1000,ic:'📈',t:`Montée : +${Math.round(cl.dz)} m sur ${fmt1(cl.len/1000)} km (${fmt1(cl.avg*100)} %)`,
+      d:`${Math.round(cl.ride*100)} % roulable${cl.push>0.03?` · ${Math.round(cl.push*100)} % portage probable`:''} · ${Math.round(cl.paved*100)} % bitume`}));
+    ev.sort((a,b)=>a.km-b.km);
+    if(!ev.length)para('Aucun point particulier repéré.',7.5,'#5f6a64');
+    for(const e of ev){
+      doc.setFont('helvetica','bold');doc.setFontSize(7.4);const tl2=doc.splitTextToSize(T(e.t),CW-19);
+      doc.setFont('helvetica','normal');doc.setFontSize(6.4);const dl=e.d?doc.splitTextToSize(T(e.d),CW-19):[];
+      const h=Math.max(5.5,tl2.length*LH(7.4)+dl.length*LH(6.4))+1.4;ensure(h);
+      doc.addImage(iconURL(e.ic),'PNG',M,y-0.3,4,4);
+      doc.setFont('helvetica','bold');doc.setFontSize(7.4);ink('#5f6a64');txt(`km ${fmt1(e.km)}`,M+5,y);
+      ink(e.warn?'#a3361a':'#1d2421');txt(tl2,M+19,y,{lineHeightFactor:1.32});
+      doc.setFont('helvetica','normal');doc.setFontSize(6.4);ink('#5f6a64');if(dl.length)txt(dl,M+19,y+tl2.length*LH(7.4),{lineHeightFactor:1.32});
+      y+=h;draw('#e6e2d8');doc.setLineWidth(0.15);doc.line(M+19,y-0.7,PW-M,y-0.7);}
+
+    /* --- À savoir --- */
+    y+=4;h2('À savoir');
+    const notes=[];
+    if(A.npLen>0)notes.push(`Le tracé traverse un cœur de parc national sur ${fmt1(A.npLen/1000)} km : VTT en principe interdit.`);
+    if(A.resLen>0)notes.push(`Réserve naturelle ou zone protégée sur ${fmt1(A.resLen/1000)} km : réglementation à vérifier.`);
+    if(!water)notes.push("Aucun point d'eau potable repéré : prévois ton autonomie.");
+    if(A.unknown/A.len>0.1)notes.push(`${Math.round(A.unknown/A.len*100)} % des singles n'ont pas de niveau VTT renseigné : niveau estimé (tirets sur la carte).`);
+    notes.push(`Exposition : relief mesuré à 25 et 50 m de chaque côté du chemin (${A.src==='ign'?'IGN RGE ALTI':'relief approximatif ~30 m'}). « Pente latérale forte » : terrain au moins 40 m plus bas à 50 m. « Exposition marquée » : au moins 60 m plus bas, ou falaise proche. Indicatif : ne remplace pas une reconnaissance.`);
+    notes.push('Durée estimée hors pauses, calculée sur ton niveau. Difficulté et roulabilité estimées à partir des données OpenStreetMap : vérifie sur le terrain et respecte la réglementation locale.');
+    for(const n of notes){para('- '+n,6.8,'#3d4541');y+=1.2;}
+    footer();
+    const slug=s=>T(s||'parcours').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-|-$/g,'');
+    doc.save(`Fiche-VTT_${slug(state.startName)}_${Math.round(A.len/1000)}km.pdf`);
+    toast('Fiche PDF téléchargée.');
+  }catch(e){console.error(e);toast(e.message||String(e),8000);}
+  finally{busy(false);}
+}
+</script>
+</body>
+</html>
